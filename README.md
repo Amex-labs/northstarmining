@@ -20,11 +20,7 @@ From this folder:
 npm start
 ```
 
-Then open:
-
-- [http://localhost:6060](http://localhost:6060)
-- [http://localhost:6060/dashboard](http://localhost:6060/dashboard)
-- [http://localhost:6060/admin](http://localhost:6060/admin)
+Then open the local app in your browser after the server starts.
 
 ## Access
 
