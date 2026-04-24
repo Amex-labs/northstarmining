@@ -1,0 +1,13 @@
+{
+  "name": "northstar-mining-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Trust-first crypto mining platform demo with live profitability estimates, dashboard, and real-time support.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

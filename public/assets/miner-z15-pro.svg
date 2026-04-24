@@ -1,0 +1,27 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#07101B"/>
+  <rect x="74" y="92" width="812" height="456" rx="32" fill="#0D1E31" stroke="#2C4F73" stroke-width="4"/>
+  <rect x="118" y="146" width="724" height="348" rx="28" fill="#13283E"/>
+  <rect x="156" y="196" width="262" height="248" rx="24" fill="#0A1625" stroke="#7CE6F1" stroke-width="4"/>
+  <circle cx="242" cy="320" r="68" fill="#11253A" stroke="#7CE6F1" stroke-width="10"/>
+  <circle cx="242" cy="320" r="26" fill="#06101B"/>
+  <path d="M242 258V382" stroke="#7CE6F1" stroke-width="8" stroke-linecap="round"/>
+  <path d="M180 320H304" stroke="#7CE6F1" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="332" cy="320" r="42" fill="#11253A" stroke="#7CE6F1" stroke-width="8"/>
+  <circle cx="332" cy="320" r="16" fill="#06101B"/>
+  <path d="M332 282V358" stroke="#7CE6F1" stroke-width="6" stroke-linecap="round"/>
+  <path d="M294 320H370" stroke="#7CE6F1" stroke-width="6" stroke-linecap="round"/>
+  <rect x="464" y="196" width="320" height="248" rx="24" fill="#0B1727" stroke="#284765" stroke-width="4"/>
+  <rect x="500" y="236" width="212" height="18" rx="9" fill="#F7B955"/>
+  <rect x="500" y="278" width="244" height="14" rx="7" fill="#55789C"/>
+  <rect x="500" y="312" width="224" height="14" rx="7" fill="#55789C"/>
+  <rect x="500" y="346" width="168" height="14" rx="7" fill="#7CE6F1"/>
+  <rect x="500" y="386" width="104" height="22" rx="11" fill="#1A314A"/>
+  <rect x="618" y="386" width="52" height="22" rx="11" fill="#1A314A"/>
+  <rect x="684" y="386" width="60" height="22" rx="11" fill="#1A314A"/>
+  <rect x="142" y="118" width="168" height="42" rx="21" fill="#102235" stroke="#335A80"/>
+  <text x="176" y="146" fill="#EDF3FB" font-family="Arial, sans-serif" font-size="24" font-weight="700">ANTMINER Z15 PRO</text>
+  <rect x="640" y="118" width="176" height="42" rx="21" fill="#201A11" stroke="#6F5430"/>
+  <text x="678" y="146" fill="#FFD38D" font-family="Arial, sans-serif" font-size="22" font-weight="700">840 kSol/s</text>
+  <text x="154" y="584" fill="#95AAC4" font-family="Arial, sans-serif" font-size="24">Equihash rig illustration bundled locally for reliable rendering</text>
+</svg>

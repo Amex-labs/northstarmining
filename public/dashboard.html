@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Northstar Mining | User Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="theme-dark dashboard-page">
+    <div class="dashboard-shell">
+      <aside class="dashboard-sidebar">
+        <a class="brand" href="/">
+          <span class="brand-mark">N</span>
+          <span>
+            <strong>Northstar Mining</strong>
+            <small>User dashboard</small>
+          </span>
+        </a>
+        <nav class="sidebar-nav">
+          <a href="#summary">Overview</a>
+          <a href="#contracts">Contracts</a>
+          <a href="#withdrawals">Withdrawals</a>
+          <a href="#support">Support</a>
+          <a href="#security">Security</a>
+        </nav>
+        <div class="sidebar-foot">
+          <p id="userIdentity">Checking session...</p>
+          <button class="ghost-button wide" id="logoutButton" type="button">Logout</button>
+        </div>
+      </aside>
+
+      <main class="dashboard-main">
+        <header class="dashboard-header">
+          <div>
+            <p class="eyebrow">Operations center</p>
+            <h1>Mining performance with live, variable assumptions.</h1>
+          </div>
+          <div class="header-actions">
+            <span class="status-pill" id="demoModeBadge">Guided onboarding</span>
+            <a class="secondary-link" href="/">Back to site</a>
+          </div>
+        </header>
+
+        <section class="metric-row" id="summary">
+          <article class="metric-card"><span>Wallet balance</span><strong id="walletBalance">-</strong></article>
+          <article class="metric-card"><span>Pending balance</span><strong id="pendingBalance">-</strong></article>
+          <article class="metric-card"><span>Estimated today</span><strong id="dailyEstimate">-</strong></article>
+          <article class="metric-card"><span>Estimated this month</span><strong id="monthlyEstimate">-</strong></article>
+          <article class="metric-card"><span>Deployed power</span><strong id="powerDraw">-</strong></article>
+          <article class="metric-card"><span>Active contracts</span><strong id="contractCount">-</strong></article>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="dashboard-panel chart-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Earnings history</p>
+                <h2>Net earnings over time</h2>
+              </div>
+              <span class="muted-copy" id="riskLabel"></span>
+            </div>
+            <canvas id="earningsChart" width="960" height="340"></canvas>
+          </article>
+
+          <article class="dashboard-panel announcements-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Announcements</p>
+                <h2>Operations updates</h2>
+              </div>
+            </div>
+            <div id="announcementList" class="stack-list"></div>
+          </article>
+        </section>
+
+        <section class="dashboard-panel" id="contracts">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Contracts</p>
+              <h2>Active mining exposure</h2>
+            </div>
+          </div>
+          <div class="contract-list" id="contractList"></div>
+        </section>
+
+        <section class="dashboard-grid" id="withdrawals">
+          <article class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Withdrawals</p>
+                <h2>Request a payout</h2>
+              </div>
+            </div>
+            <form class="stack-form" id="withdrawForm">
+              <label>Amount (USD) <input name="amountUsd" type="number" min="50" step="10" required /></label>
+              <label>Crypto asset <select name="asset" id="withdrawAsset" required></select></label>
+              <label>Network <select name="network" id="withdrawNetwork" required></select></label>
+              <label>Wallet address <input name="address" required /></label>
+              <button class="primary-button wide" type="submit">Submit withdrawal</button>
+            </form>
+            <p class="muted-copy">Every withdrawal request opens a live operations thread so the admin team can confirm network, wallet ownership, and release timing with you directly.</p>
+            <div class="stack-list" id="withdrawalList"></div>
+          </article>
+
+          <article class="dashboard-panel" id="security">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Security</p>
+                <h2>Email verification and 2FA</h2>
+              </div>
+            </div>
+            <div class="security-state" id="securityState"></div>
+            <div class="stack-form">
+              <button class="secondary-button wide" id="setup2faButton" type="button">Start 2FA setup</button>
+              <label>Authenticator code <input id="twoFactorCode" inputmode="numeric" maxlength="6" /></label>
+              <div class="button-row">
+                <button class="primary-button wide" id="enable2faButton" type="button">Enable 2FA</button>
+                <button class="ghost-button wide" id="disable2faButton" type="button">Disable 2FA</button>
+              </div>
+            </div>
+            <pre class="secret-box" id="twoFactorSecret"></pre>
+          </article>
+        </section>
+
+        <section class="dashboard-grid" id="support">
+          <article class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Live support</p>
+                <h2>Operations desk chat</h2>
+              </div>
+            </div>
+            <div class="support-feed integrated" id="dashboardSupportFeed"></div>
+            <form class="support-form" id="dashboardSupportForm">
+              <textarea id="dashboardSupportInput" rows="3" placeholder="Ask about profitability, withdrawals, or risk controls."></textarea>
+              <button class="primary-button wide" type="submit">Send live message</button>
+            </form>
+          </article>
+
+          <article class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Ticket fallback</p>
+                <h2>Create a support ticket</h2>
+              </div>
+            </div>
+            <form class="stack-form" id="ticketForm">
+              <label>Subject <input name="subject" required /></label>
+              <label>Message <textarea name="message" rows="4" required></textarea></label>
+              <button class="secondary-button wide" type="submit">Submit ticket</button>
+            </form>
+            <div class="stack-list" id="notificationList"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="/common.js"></script>
+    <script src="/dashboard.js"></script>
+  </body>
+</html>

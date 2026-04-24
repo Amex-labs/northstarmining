@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Northstar Mining | Transparent Crypto Mining Infrastructure</title>
+    <meta
+      name="description"
+      content="Northstar Mining is a trust-first hosted mining platform with transparent profitability estimates, responsible onboarding, and real-time operational insight."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="theme-dark">
+    <div class="site-shell">
+      <header class="topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark">N</span>
+          <span>
+            <strong>Northstar Mining</strong>
+            <small>Transparent infrastructure</small>
+          </span>
+        </a>
+        <nav class="topnav">
+          <a href="#plans">Plans</a>
+          <a href="#calculator">Calculator</a>
+          <a href="#transparency">Transparency</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <div class="topbar-actions">
+          <button class="ghost-button" data-open-auth="login">Login</button>
+          <button class="primary-button" data-open-auth="register">Start Mining</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Secure, Transparent Crypto Mining Infrastructure</p>
+            <h1>Understand the model before you deploy capital.</h1>
+            <p class="hero-body">
+              Northstar shows live network inputs, equipment assumptions, and variable profitability ranges so every estimate can be evaluated with context instead of hype.
+            </p>
+            <div class="hero-actions">
+              <button class="primary-button" data-open-auth="register">Start Mining</button>
+              <a class="secondary-link" href="#calculator">Model your ROI</a>
+            </div>
+            <div class="hero-risk">
+              <span>Returns vary based on network difficulty and market conditions.</span>
+              <span>Crypto mining involves risk and no returns are guaranteed.</span>
+            </div>
+            <div class="hero-stat-row">
+              <div>
+                <strong id="heroHashrate">-</strong>
+                <span>Total hash rate</span>
+              </div>
+              <div>
+                <strong id="heroMiners">-</strong>
+                <span>Active miners</span>
+              </div>
+              <div>
+                <strong id="heroDaily">-</strong>
+                <span>Estimated daily earnings</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-visual">
+            <div class="visual-orb"></div>
+            <div class="ops-console">
+              <div class="console-header">
+                <span>Live operations</span>
+                <span id="consoleRefresh">Refreshing market-linked assumptions</span>
+              </div>
+              <div class="console-grid">
+                <div>
+                  <span>Portfolio uptime</span>
+                  <strong>98.2%</strong>
+                </div>
+                <div>
+                  <span>Power assumption</span>
+                  <strong>$0.08/kWh</strong>
+                </div>
+                <div>
+                  <span>Compliance note</span>
+                  <strong>No fixed ROI promises</strong>
+                </div>
+                <div>
+                  <span>Support desk</span>
+                  <strong>Live + ticket fallback</strong>
+                </div>
+              </div>
+              <div class="console-market" id="marketTicker"></div>
+              <div class="console-chart">
+                <canvas id="heroChart" width="540" height="220"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="customer-care-strip" aria-label="Customer care">
+          <aside class="customer-care-column" id="customerCareCard"></aside>
+        </section>
+
+        <section class="trust-strip" id="how-it-works">
+          <div class="section-heading compact">
+            <p class="eyebrow">How mining works</p>
+            <h2>Infrastructure, inputs, and oversight in one flow.</h2>
+          </div>
+          <div class="roadmap-grid" id="roadmapGrid"></div>
+          <div class="trust-points" id="trustPoints"></div>
+        </section>
+
+        <section class="section-block" id="plans">
+          <div class="section-heading">
+            <p class="eyebrow">Mining Plans</p>
+            <h2>Hosted ASIC capacity with disclosed assumptions.</h2>
+            <p>Compare starting ticket size, hardware specs, deployment timing, and market-dependent earnings without fixed return language.</p>
+          </div>
+          <div class="plan-grid" id="plansGrid"></div>
+          <aside class="pricing-advisory" aria-label="Pricing verification notice">
+            <div>
+              <p class="eyebrow">Pricing & Payment</p>
+              <h3>Payment Method: USD | BTC | USDC | USDT</h3>
+              <p>
+                With rapid market changes, miner prices can vary frequently, even within a short time. Kindly verify the latest price with our sales team before making your payment.
+              </p>
+            </div>
+            <a class="sales-contact" href="mailto:frankiebreeuwsma@myself.com">frankiebreeuwsma@myself.com</a>
+          </aside>
+        </section>
+
+        <section class="section-block calculator-block" id="calculator">
+          <div class="section-heading">
+            <p class="eyebrow">ROI Calculator</p>
+            <h2>Stress-test your assumptions before signing up.</h2>
+            <p>Adjust power cost, coin, and contract term to see how the same machine behaves under changing market conditions.</p>
+          </div>
+          <div class="calculator-layout">
+            <form class="calculator-form" id="calculatorForm">
+              <label>
+                Mining plan
+                <select id="planSelect"></select>
+              </label>
+              <label>
+                Coin
+                <select id="coinSelect"></select>
+              </label>
+              <label>
+                Electricity cost ($/kWh)
+                <input id="electricityInput" type="range" min="0.03" max="0.20" step="0.005" value="0.08" />
+                <span id="electricityValue">$0.080</span>
+              </label>
+              <label>
+                Term length (months)
+                <input id="termInput" type="range" min="3" max="36" step="1" value="12" />
+                <span id="termValue">12 months</span>
+              </label>
+              <button class="primary-button wide" type="submit">Update estimate</button>
+            </form>
+            <div class="estimate-panel" id="estimateOutput"></div>
+          </div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-heading">
+            <p class="eyebrow">Live Market Snapshot</p>
+            <h2>Multi-coin visibility for responsible decisions.</h2>
+            <p>BTC, INI, and ZEC metrics update continuously so earnings stay tied to price and difficulty conditions.</p>
+          </div>
+          <div class="market-grid" id="marketGrid"></div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-heading">
+            <p class="eyebrow">Hardware Marketplace</p>
+            <h2>Browse hosted hardware classes and operating profiles.</h2>
+            <p>Each machine profile includes algorithm, throughput, power draw, and the hosted capacity class used in Northstar placements.</p>
+          </div>
+          <div class="hardware-grid" id="hardwareGrid"></div>
+        </section>
+
+        <section class="section-block transparency-block" id="transparency">
+          <div class="section-heading">
+            <p class="eyebrow">Trust & Transparency</p>
+            <h2>Built to reduce uncertainty, not hide it.</h2>
+            <p>Northstar pairs operational reporting with clearly stated risk disclosures, facility context, and live support.</p>
+          </div>
+          <div class="transparency-layout">
+            <div class="image-column">
+              <img src="/assets/datacenter-1.svg" alt="Northstar data center hall illustration" />
+              <img src="/assets/datacenter-2.svg" alt="Northstar cooling and rack layout illustration" />
+            </div>
+            <div class="transparency-copy">
+              <article id="companyCard"></article>
+              <article class="disclosure-card">
+                <h3>Risk disclosure</h3>
+                <ul id="disclosureList"></ul>
+              </article>
+              <article class="disclosure-card">
+                <h3>Platform note</h3>
+                <p id="legalNote"></p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-block demo-block">
+          <div class="demo-banner">
+            <div>
+              <p class="eyebrow">Guided Onboarding</p>
+              <h2>Review the workflow before you activate capacity.</h2>
+              <p>New users can begin with a guided portfolio walkthrough, onboarding notifications, and support-led setup before committing more capital.</p>
+            </div>
+            <button class="primary-button" data-open-auth="register">Request onboarding</button>
+          </div>
+        </section>
+
+        <section class="section-block" id="faq">
+          <div class="section-heading">
+            <p class="eyebrow">FAQ</p>
+            <h2>Answers to the questions cautious users ask first.</h2>
+          </div>
+          <div class="faq-list" id="faqList"></div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div>
+          <strong>Northstar Mining</strong>
+          <p>Transparent mining operations, market-dependent estimates, and responsible onboarding.</p>
+        </div>
+        <div class="footer-links">
+          <a href="/dashboard">Dashboard</a>
+          <a href="/admin">Admin</a>
+          <a href="#transparency">Risk Disclosure</a>
+        </div>
+      </footer>
+    </div>
+
+    <button class="support-toggle" id="supportToggle" type="button">Live support</button>
+    <aside class="support-panel" id="supportPanel" aria-hidden="true">
+      <div class="panel-header">
+        <strong>Northstar Support</strong>
+        <button class="ghost-button small" id="supportClose" type="button">Close</button>
+      </div>
+      <div class="support-feed" id="supportFeed">
+        <p class="support-system">Login or create an account to chat with our operations desk. Ticket fallback is available after sign-in.</p>
+      </div>
+      <div class="support-contact-list" id="supportContactList"></div>
+      <form class="support-form" id="supportForm">
+        <textarea id="supportInput" rows="3" placeholder="Ask about estimates, electricity assumptions, or platform risk." disabled></textarea>
+        <button class="primary-button wide" type="submit" disabled>Send message</button>
+      </form>
+    </aside>
+
+    <div class="modal-shell hidden" id="authModal" aria-hidden="true">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div>
+            <p class="eyebrow">Account access</p>
+            <h2>Secure onboarding with verification.</h2>
+          </div>
+          <button class="ghost-button small" id="authClose" type="button">Close</button>
+        </div>
+        <div class="auth-tabs">
+          <button class="tab-button active" data-auth-tab="register" type="button">Register</button>
+          <button class="tab-button" data-auth-tab="login" type="button">Login</button>
+          <button class="tab-button" data-auth-tab="verify" type="button">Verify email</button>
+        </div>
+        <form class="auth-form" id="registerForm">
+          <label>Full name <input name="fullName" required /></label>
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Password <input name="password" type="password" minlength="8" required /></label>
+          <label class="checkbox-row"><input name="demoMode" type="checkbox" checked /> Start with guided onboarding and a starter portfolio walkthrough</label>
+          <button class="primary-button wide" type="submit">Create account</button>
+        </form>
+        <form class="auth-form hidden" id="loginForm">
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Password <input name="password" type="password" required /></label>
+          <label>Authenticator code (if enabled) <input name="code" inputmode="numeric" maxlength="6" /></label>
+          <button class="primary-button wide" type="submit">Login</button>
+        </form>
+        <form class="auth-form hidden" id="verifyForm">
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Verification code <input name="code" inputmode="numeric" maxlength="6" required /></label>
+          <button class="primary-button wide" type="submit">Verify email</button>
+        </form>
+        <p class="auth-status" id="authStatus">We never promise fixed returns. Verification and 2FA are available for account security.</p>
+      </div>
+    </div>
+
+    <script src="/common.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

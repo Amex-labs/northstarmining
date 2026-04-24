@@ -1,0 +1,24 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#06101A"/>
+  <rect x="54" y="146" width="852" height="348" rx="34" fill="#0E2033" stroke="#335777" stroke-width="4"/>
+  <rect x="98" y="196" width="764" height="248" rx="26" fill="#14293F"/>
+  <rect x="136" y="228" width="520" height="184" rx="22" fill="#0B1726" stroke="#7CE6F1" stroke-width="4"/>
+  <rect x="172" y="264" width="224" height="16" rx="8" fill="#F7B955"/>
+  <rect x="172" y="302" width="342" height="14" rx="7" fill="#55789C"/>
+  <rect x="172" y="336" width="316" height="14" rx="7" fill="#55789C"/>
+  <rect x="172" y="370" width="192" height="14" rx="7" fill="#7CE6F1"/>
+  <rect x="692" y="222" width="126" height="196" rx="24" fill="#0A1625" stroke="#7CE6F1" stroke-width="4"/>
+  <circle cx="755" cy="286" r="34" fill="#11253A" stroke="#7CE6F1" stroke-width="8"/>
+  <circle cx="755" cy="286" r="12" fill="#06101A"/>
+  <circle cx="755" cy="354" r="34" fill="#11253A" stroke="#7CE6F1" stroke-width="8"/>
+  <circle cx="755" cy="354" r="12" fill="#06101A"/>
+  <path d="M820 238C870 238 890 178 834 156" stroke="#74E6F5" stroke-width="14" stroke-linecap="round"/>
+  <path d="M820 402C874 402 894 460 838 482" stroke="#74E6F5" stroke-width="14" stroke-linecap="round"/>
+  <path d="M834 156H874" stroke="#74E6F5" stroke-width="14" stroke-linecap="round"/>
+  <path d="M838 482H878" stroke="#74E6F5" stroke-width="14" stroke-linecap="round"/>
+  <rect x="110" y="104" width="272" height="42" rx="21" fill="#102235" stroke="#335A80"/>
+  <text x="146" y="132" fill="#EDF3FB" font-family="Arial, sans-serif" font-size="24" font-weight="700">ANTMINER S21e XP HYD 3U</text>
+  <rect x="654" y="104" width="182" height="42" rx="21" fill="#201A11" stroke="#6F5430"/>
+  <text x="700" y="132" fill="#FFD38D" font-family="Arial, sans-serif" font-size="22" font-weight="700">860 TH/s</text>
+  <text x="122" y="554" fill="#95AAC4" font-family="Arial, sans-serif" font-size="24">Hydro-cooled 3U chassis illustration bundled locally for stable display</text>
+</svg>

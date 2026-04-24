@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Northstar Mining | Admin Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="theme-dark dashboard-page">
+    <div class="dashboard-shell admin-shell">
+      <aside class="dashboard-sidebar">
+        <a class="brand" href="/">
+          <span class="brand-mark">N</span>
+          <span>
+            <strong>Northstar Mining</strong>
+            <small>Admin console</small>
+          </span>
+        </a>
+        <nav class="sidebar-nav">
+          <a href="#metrics">Metrics</a>
+          <a href="#users">Users</a>
+          <a href="#threads">Support</a>
+          <a href="#broadcast">Broadcast</a>
+        </nav>
+        <div class="sidebar-foot">
+          <p id="adminIdentity">Admin sign-in required</p>
+          <button class="ghost-button wide" id="adminLogoutButton" type="button">Logout</button>
+        </div>
+      </aside>
+
+      <main class="dashboard-main">
+        <header class="dashboard-header">
+          <div>
+            <p class="eyebrow">Admin operations</p>
+            <h1>Users, support, and earnings adjustments.</h1>
+          </div>
+          <div class="header-actions">
+            <button class="primary-button" id="adminLoginButton" type="button">Admin login</button>
+            <a class="secondary-link" href="/">Back to site</a>
+          </div>
+        </header>
+
+        <section class="metric-row" id="metrics">
+          <article class="metric-card"><span>Total users</span><strong id="metricUsers">-</strong></article>
+          <article class="metric-card"><span>Verified users</span><strong id="metricVerified">-</strong></article>
+          <article class="metric-card"><span>Active contracts</span><strong id="metricContracts">-</strong></article>
+          <article class="metric-card"><span>Pending withdrawals</span><strong id="metricWithdrawals">-</strong></article>
+          <article class="metric-card"><span>Open threads</span><strong id="metricThreads">-</strong></article>
+          <article class="metric-card"><span>Est. daily payout</span><strong id="metricPayout">-</strong></article>
+        </section>
+
+        <section class="dashboard-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Withdrawal queue</p>
+              <h2>Requests awaiting review</h2>
+            </div>
+          </div>
+          <div class="stack-list" id="pendingWithdrawalList"></div>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="dashboard-panel" id="users">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Users</p>
+                <h2>Portfolio and verification overview</h2>
+              </div>
+            </div>
+            <div class="table-shell">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Balances</th>
+                    <th>Contracts</th>
+                    <th>Security</th>
+                    <th>Last login</th>
+                  </tr>
+                </thead>
+                <tbody id="userTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Adjustments</p>
+                <h2>Manual earnings or balance update</h2>
+              </div>
+            </div>
+            <form class="stack-form" id="adjustmentForm">
+              <label>User <select name="userId" id="adjustUserSelect"></select></label>
+              <label>Amount (USD) <input name="amountUsd" type="number" step="0.01" required /></label>
+              <label>Note <textarea name="note" rows="4" required></textarea></label>
+              <button class="primary-button wide" type="submit">Post adjustment</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="dashboard-grid" id="threads">
+          <article class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Live support</p>
+                <h2>Open support threads</h2>
+              </div>
+            </div>
+            <div class="thread-list" id="threadList"></div>
+          </article>
+
+          <article class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Thread chat</p>
+                <h2>Respond in real time</h2>
+              </div>
+            </div>
+            <div class="support-feed integrated" id="adminSupportFeed"></div>
+            <form class="support-form" id="adminSupportForm">
+              <textarea id="adminSupportInput" rows="3" placeholder="Reply to the selected support thread."></textarea>
+              <button class="primary-button wide" type="submit">Send reply</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="dashboard-grid" id="broadcast">
+          <article class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Broadcast</p>
+                <h2>Operational announcements</h2>
+              </div>
+            </div>
+            <form class="stack-form" id="broadcastForm">
+              <label>Title <input name="title" required /></label>
+              <label>Message <textarea name="message" rows="4" required></textarea></label>
+              <button class="secondary-button wide" type="submit">Send announcement</button>
+            </form>
+          </article>
+
+          <article class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Audit log</p>
+                <h2>Recent admin activity</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="auditLog"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-shell hidden" id="adminAuthModal" aria-hidden="true">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div>
+            <p class="eyebrow">Admin access</p>
+            <h2>Northstar operations sign-in</h2>
+          </div>
+          <button class="ghost-button small" id="adminAuthClose" type="button">Close</button>
+        </div>
+        <form class="auth-form" id="adminLoginForm">
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Password <input name="password" type="password" required /></label>
+          <label>Authenticator code (if enabled) <input name="code" inputmode="numeric" maxlength="6" /></label>
+          <button class="primary-button wide" type="submit">Login</button>
+        </form>
+        <p class="auth-status" id="adminStatus">Use the seeded admin credentials in the project README for local preview.</p>
+      </div>
+    </div>
+
+    <script src="/common.js"></script>
+    <script src="/admin.js"></script>
+  </body>
+</html>
