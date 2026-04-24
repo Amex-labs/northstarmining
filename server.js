@@ -1015,7 +1015,7 @@ function buildPublicOverview(store) {
       operatingModel:
         "Northstar hosts ASIC fleets in tiered facilities and publishes the exact energy, maintenance, and uptime assumptions used in the calculator so users can assess downside as well as upside.",
       legal:
-        "Displayed estimates are generated from current operating assumptions, current market inputs, and fleet-level optimization settings. Returns remain variable and should be confirmed before purchase.",
+        "Displayed estimates are calculated from live network data, current operating assumptions, and disclosed fleet performance metrics. Figures refresh continuously, remain market-dependent, and are reviewed with our team before payment or plan activation.",
     },
   };
 }
