@@ -26,15 +26,10 @@ Then open:
 - [http://localhost:6060/dashboard](http://localhost:6060/dashboard)
 - [http://localhost:6060/admin](http://localhost:6060/admin)
 
-## Seeded admin account
+## Access
 
-- email: `ops@northstar.demo`
-- password: `Admin!2026`
-
-## Preview user account
-
-- email: `olivia.reid@northstar.demo`
-- password: `Preview!2026`
+- Use the standard registration flow from the website for general user access.
+- Keep any seeded or operator credentials private and out of public documentation.
 
 ## Notes
 
