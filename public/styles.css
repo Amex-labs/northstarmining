@@ -768,10 +768,53 @@ input[type="range"] {
 
 .site-footer {
   margin-top: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(180px, 0.75fr) minmax(220px, 0.9fr);
+  align-items: start;
+  gap: 28px;
+}
+
+.footer-brand {
+  display: grid;
+  gap: 12px;
+}
+
+.footer-brand h3 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2vw, 1.75rem);
+  line-height: 1.2;
+}
+
+.footer-brand p:last-child {
+  margin: 0;
+  max-width: 60ch;
+}
+
+.footer-column {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.footer-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.footer-column a {
+  color: #dce7f6;
+  transition: color 160ms ease;
+}
+
+.footer-column a:hover {
+  color: var(--accent);
+}
+
+.footer-note {
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .support-toggle {
@@ -1022,12 +1065,15 @@ input[type="range"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .site-footer,
   .demo-banner,
   .pricing-advisory,
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .site-footer {
+    grid-template-columns: 1fr;
   }
 
   .customer-care-strip {
