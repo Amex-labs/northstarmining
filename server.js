@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const { URL } = require("url");
 
 const PORT = Number(process.env.PORT || 6060);
+const HOST = process.env.HOST || "0.0.0.0";
 const ROOT_DIR = __dirname;
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 const DATA_DIR = path.join(ROOT_DIR, "data");
@@ -310,8 +311,8 @@ const server = http.createServer((req, res) => {
 
 server.on("upgrade", handleUpgrade);
 
-server.listen(PORT, () => {
-  console.log(`${BRAND.name} listening on http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`${BRAND.name} listening on http://${HOST}:${PORT}`);
 });
 
 setInterval(() => {
@@ -459,7 +460,7 @@ function createSeedUser({ id, role, fullName, email, password, emailVerified, de
 }
 
 async function routeRequest(req, res) {
-  const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+  const requestUrl = getRequestUrl(req);
 
   if (requestUrl.pathname.startsWith("/api/")) {
     await handleApi(req, res, requestUrl);
@@ -1304,14 +1305,30 @@ function readJsonBody(req) {
   });
 }
 
+function getRequestUrl(req) {
+  const host = String(req.headers.host || `127.0.0.1:${PORT}`).trim() || `127.0.0.1:${PORT}`;
+  const rawTarget = String(req.url || "/").trim();
+  let normalizedTarget = rawTarget || "/";
+
+  if (normalizedTarget.startsWith("//")) {
+    normalizedTarget = `/${normalizedTarget.replace(/^\/+/, "")}`;
+  } else if (!normalizedTarget.startsWith("/")) {
+    normalizedTarget = `/${normalizedTarget}`;
+  }
+
+  return new URL(normalizedTarget, `http://${host}`);
+}
+
 function serveStatic(requestPath, res) {
   const routes = {
+    "": "index.html",
     "/": "index.html",
     "/dashboard": "dashboard.html",
     "/admin": "admin.html",
   };
   const relativePath = routes[requestPath] || requestPath.replace(/^\/+/, "");
-  const safePath = path.normalize(relativePath).replace(/^(\.\.[/\\])+/, "");
+  const normalizedPath = path.normalize(relativePath || "").replace(/^(\.\.[/\\])+/, "");
+  const safePath = !normalizedPath || normalizedPath === "." ? "index.html" : normalizedPath;
   const filePath = path.join(PUBLIC_DIR, safePath);
 
   if (!filePath.startsWith(PUBLIC_DIR)) {
@@ -1568,7 +1585,7 @@ function verifyTotp(secret, token) {
 }
 
 function handleUpgrade(req, socket) {
-  const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+  const requestUrl = getRequestUrl(req);
   if (requestUrl.pathname !== "/ws") {
     socket.destroy();
     return;
