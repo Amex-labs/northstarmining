@@ -74,6 +74,7 @@ function bindEvents() {
     dom.supportPanel.setAttribute("aria-hidden", String(!hidden));
   });
   dom.supportClose.addEventListener("click", () => dom.supportPanel.setAttribute("aria-hidden", "true"));
+  bindPasswordToggles();
 
   dom.registerForm.addEventListener("submit", handleRegister);
   dom.loginForm.addEventListener("submit", handleLogin);
@@ -94,6 +95,39 @@ function bindEvents() {
     updateEstimate();
   });
   dom.coinSelect.addEventListener("change", updateEstimate);
+}
+
+function bindPasswordToggles() {
+  document.querySelectorAll("[data-password-toggle]").forEach((button) => {
+    syncPasswordToggle(button);
+    button.addEventListener("click", () => {
+      const input = document.querySelector(button.dataset.passwordToggle);
+      if (!input) {
+        return;
+      }
+      input.type = input.type === "password" ? "text" : "password";
+      syncPasswordToggle(button);
+      input.focus({ preventScroll: true });
+    });
+  });
+}
+
+function syncPasswordToggle(button) {
+  const input = document.querySelector(button.dataset.passwordToggle);
+  if (!input) {
+    return;
+  }
+  const isVisible = input.type === "text";
+  button.setAttribute("aria-label", isVisible ? "Hide password" : "Show password");
+  button.setAttribute("aria-pressed", String(isVisible));
+  const hiddenIcon = button.querySelector(".icon-hidden");
+  const visibleIcon = button.querySelector(".icon-visible");
+  if (hiddenIcon) {
+    hiddenIcon.hidden = isVisible;
+  }
+  if (visibleIcon) {
+    visibleIcon.hidden = !isVisible;
+  }
 }
 
 async function loadOverview() {
