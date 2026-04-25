@@ -94,6 +94,24 @@
               </div>
               <div class="console-market" id="marketTicker"></div>
               <div class="console-chart">
+                <div class="console-chart-head">
+                  <div class="chart-metric">
+                    <span>BTC spot</span>
+                    <strong id="heroChartPrice">-</strong>
+                  </div>
+                  <div class="chart-metric">
+                    <span>24h move</span>
+                    <strong id="heroChartChange">-</strong>
+                  </div>
+                  <div class="chart-metric">
+                    <span>Session range</span>
+                    <strong id="heroChartRange">-</strong>
+                  </div>
+                  <div class="chart-status">
+                    <span class="live-dot" aria-hidden="true"></span>
+                    <span id="heroChartStatus">Market-linked BTC view</span>
+                  </div>
+                </div>
                 <canvas id="heroChart" width="540" height="220"></canvas>
               </div>
             </div>

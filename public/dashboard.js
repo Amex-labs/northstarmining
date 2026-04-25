@@ -16,6 +16,9 @@ const dashboardDom = {
   contractCount: document.querySelector("#contractCount"),
   riskLabel: document.querySelector("#riskLabel"),
   earningsChart: document.querySelector("#earningsChart"),
+  earningsLatest: document.querySelector("#earningsLatest"),
+  earningsAverage: document.querySelector("#earningsAverage"),
+  earningsBest: document.querySelector("#earningsBest"),
   announcementList: document.querySelector("#announcementList"),
   contractList: document.querySelector("#contractList"),
   withdrawForm: document.querySelector("#withdrawForm"),
@@ -61,6 +64,11 @@ function bindDashboardEvents() {
   dashboardDom.enable2faButton.addEventListener("click", enableTwoFactor);
   dashboardDom.disable2faButton.addEventListener("click", disableTwoFactor);
   dashboardDom.withdrawAsset.addEventListener("change", populateWithdrawalNetworks);
+  window.addEventListener("resize", () => {
+    if (dashboardState.summary?.earningsHistory?.length) {
+      drawEarningsChart(dashboardState.summary.earningsHistory);
+    }
+  });
 }
 
 async function refreshDashboard() {
@@ -158,11 +166,16 @@ function renderDashboard() {
     .join("");
 
   renderSupportMessages(support.messages);
+  renderEarningsSummary(dashboardState.summary.earningsHistory);
   drawEarningsChart(dashboardState.summary.earningsHistory);
 }
 
 function drawEarningsChart(points) {
   const canvas = dashboardDom.earningsChart;
+  if (!canvas) {
+    return;
+  }
+  syncCanvasSize(canvas);
   const context = canvas.getContext("2d");
   context.clearRect(0, 0, canvas.width, canvas.height);
   if (!points.length) {
@@ -170,26 +183,60 @@ function drawEarningsChart(points) {
   }
 
   const values = points.map((item) => item.netUsd);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const pad = 28;
-  const step = (canvas.width - pad * 2) / Math.max(values.length - 1, 1);
+  const movingAverage = buildMovingAverage(values, 7);
+  const min = Math.min(...values, ...movingAverage) * 0.96;
+  const max = Math.max(...values, ...movingAverage) * 1.04;
+  const plot = {
+    left: 18,
+    right: canvas.width - 76,
+    top: 22,
+    bottom: canvas.height - 44,
+  };
+  const barStep = (plot.right - plot.left) / points.length;
+  const barWidth = Math.max(barStep * 0.62, 8);
+  const referenceValues = Array.from({ length: 4 }, (_, index) => max - ((max - min) / 3) * index);
 
-  context.strokeStyle = "rgba(255,255,255,0.08)";
+  const backdrop = context.createLinearGradient(0, plot.top, 0, plot.bottom);
+  backdrop.addColorStop(0, "rgba(116, 230, 245, 0.06)");
+  backdrop.addColorStop(1, "rgba(8, 16, 28, 0)");
+  context.fillStyle = backdrop;
+  context.fillRect(plot.left, plot.top, plot.right - plot.left, plot.bottom - plot.top);
+
+  context.strokeStyle = "rgba(255,255,255,0.07)";
   context.lineWidth = 1;
-  for (let line = 0; line < 4; line += 1) {
-    const y = pad + ((canvas.height - pad * 2) / 3) * line;
+  context.font = "12px Plus Jakarta Sans";
+  context.fillStyle = "rgba(197, 214, 235, 0.74)";
+  context.textAlign = "left";
+  referenceValues.forEach((value) => {
+    const y = mapRange(value, min, max, plot.bottom, plot.top);
     context.beginPath();
-    context.moveTo(pad, y);
-    context.lineTo(canvas.width - pad, y);
+    context.moveTo(plot.left, y);
+    context.lineTo(plot.right, y);
     context.stroke();
-  }
+    context.fillText(shortCurrency(value), plot.right + 12, y + 4);
+  });
+
+  points.forEach((point, index) => {
+    const x = plot.left + index * barStep + (barStep - barWidth) / 2;
+    const top = mapRange(point.netUsd, min, max, plot.bottom, plot.top);
+    const previous = points[index - 1]?.netUsd ?? point.netUsd;
+    const rising = point.netUsd >= previous;
+    const gradient = context.createLinearGradient(0, top, 0, plot.bottom);
+    if (rising) {
+      gradient.addColorStop(0, "rgba(116, 230, 245, 0.94)");
+      gradient.addColorStop(1, "rgba(116, 230, 245, 0.18)");
+    } else {
+      gradient.addColorStop(0, "rgba(244, 178, 93, 0.94)");
+      gradient.addColorStop(1, "rgba(244, 178, 93, 0.18)");
+    }
+    context.fillStyle = gradient;
+    fillRoundedRect(context, x, top, barWidth, plot.bottom - top, 10);
+  });
 
   context.beginPath();
-  values.forEach((value, index) => {
-    const x = pad + step * index;
-    const ratio = max === min ? 0.5 : (value - min) / (max - min);
-    const y = canvas.height - pad - ratio * (canvas.height - pad * 2);
+  movingAverage.forEach((value, index) => {
+    const x = plot.left + index * barStep + barStep / 2;
+    const y = mapRange(value, min, max, plot.bottom, plot.top);
     if (index === 0) {
       context.moveTo(x, y);
     } else {
@@ -197,8 +244,108 @@ function drawEarningsChart(points) {
     }
   });
   context.lineWidth = 3;
-  context.strokeStyle = "#74e6f5";
+  context.strokeStyle = "rgba(223, 245, 255, 0.92)";
   context.stroke();
+
+  const latest = points[points.length - 1];
+  const latestX = plot.left + (points.length - 1) * barStep + barStep / 2;
+  const latestY = mapRange(latest.netUsd, min, max, plot.bottom, plot.top);
+  context.fillStyle = "#74e6f5";
+  context.beginPath();
+  context.arc(latestX, latestY, 5, 0, Math.PI * 2);
+  context.fill();
+  drawValueBadge(context, latestX - 54, latestY - 34, shortCurrency(latest.netUsd));
+
+  context.fillStyle = "rgba(197, 214, 235, 0.72)";
+  context.textAlign = "center";
+  [0, Math.floor(points.length / 2), points.length - 1].forEach((index) => {
+    const labelX = plot.left + index * barStep + barStep / 2;
+    context.fillText(formatChartDate(points[index].date), labelX, canvas.height - 16);
+  });
+}
+
+function renderEarningsSummary(points) {
+  if (!points.length) {
+    dashboardDom.earningsLatest.textContent = "-";
+    dashboardDom.earningsAverage.textContent = "-";
+    dashboardDom.earningsBest.textContent = "-";
+    return;
+  }
+
+  const latest = points[points.length - 1].netUsd;
+  const average = points.reduce((sum, item) => sum + item.netUsd, 0) / points.length;
+  const best = Math.max(...points.map((item) => item.netUsd));
+  dashboardDom.earningsLatest.textContent = Northstar.formatCurrency(latest);
+  dashboardDom.earningsAverage.textContent = Northstar.formatCurrency(average);
+  dashboardDom.earningsBest.textContent = Northstar.formatCurrency(best);
+}
+
+function buildMovingAverage(values, period) {
+  return values.map((_, index) => {
+    const start = Math.max(0, index - period + 1);
+    const slice = values.slice(start, index + 1);
+    const total = slice.reduce((sum, value) => sum + value, 0);
+    return total / slice.length;
+  });
+}
+
+function syncCanvasSize(canvas) {
+  const ratio = window.devicePixelRatio || 1;
+  const bounds = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(bounds.width * ratio));
+  const height = Math.max(1, Math.round(bounds.height * ratio));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function mapRange(value, inMin, inMax, outMin, outMax) {
+  if (inMax === inMin) {
+    return (outMin + outMax) / 2;
+  }
+  const ratio = (value - inMin) / (inMax - inMin);
+  return outMin + (outMax - outMin) * ratio;
+}
+
+function fillRoundedRect(context, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + safeRadius, y);
+  context.lineTo(x + width - safeRadius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  context.lineTo(x + width, y + height - safeRadius);
+  context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  context.lineTo(x + safeRadius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  context.lineTo(x, y + safeRadius);
+  context.quadraticCurveTo(x, y, x + safeRadius, y);
+  context.closePath();
+  context.fill();
+}
+
+function drawValueBadge(context, x, y, label) {
+  context.font = "12px Plus Jakarta Sans";
+  const width = Math.max(78, context.measureText(label).width + 20);
+  context.fillStyle = "rgba(6, 16, 28, 0.94)";
+  fillRoundedRect(context, x, y, width, 28, 14);
+  context.strokeStyle = "rgba(116, 230, 245, 0.25)";
+  context.stroke();
+  context.fillStyle = "#e8f3ff";
+  context.textAlign = "center";
+  context.fillText(label, x + width / 2, y + 18);
+}
+
+function shortCurrency(value) {
+  if (Math.abs(value) >= 1000) {
+    return `$${Math.round(value).toLocaleString()}`;
+  }
+  return Northstar.formatCurrency(value);
+}
+
+function formatChartDate(value) {
+  const date = new Date(value);
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 async function handleWithdrawal(event) {

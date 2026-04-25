@@ -26,6 +26,10 @@ const dom = {
   legalNote: document.querySelector("#legalNote"),
   faqList: document.querySelector("#faqList"),
   heroChart: document.querySelector("#heroChart"),
+  heroChartPrice: document.querySelector("#heroChartPrice"),
+  heroChartChange: document.querySelector("#heroChartChange"),
+  heroChartRange: document.querySelector("#heroChartRange"),
+  heroChartStatus: document.querySelector("#heroChartStatus"),
   consoleRefresh: document.querySelector("#consoleRefresh"),
   planSelect: document.querySelector("#planSelect"),
   coinSelect: document.querySelector("#coinSelect"),
@@ -95,6 +99,11 @@ function bindEvents() {
     updateEstimate();
   });
   dom.coinSelect.addEventListener("change", updateEstimate);
+  window.addEventListener("resize", () => {
+    if (state.overview) {
+      drawHeroChart();
+    }
+  });
 }
 
 function bindPasswordToggles() {
@@ -525,40 +534,193 @@ function pushSeries(symbol, price) {
 
 function drawHeroChart() {
   const canvas = dom.heroChart;
-  const context = canvas.getContext("2d");
-  const values = state.priceSeries.BTC || [];
-  context.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (!values.length) {
+  const btc = state.overview?.market?.BTC;
+  if (!canvas || !btc) {
     return;
   }
 
-  const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "rgba(116, 230, 245, 0.35)");
-  gradient.addColorStop(1, "rgba(116, 230, 245, 0)");
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const pad = 26;
-  const xStep = (canvas.width - pad * 2) / Math.max(values.length - 1, 1);
+  syncCanvasSize(canvas);
+  const context = canvas.getContext("2d");
+  const values = buildRenderableSeries("BTC", btc.priceUsd, btc.priceChange24hPct);
+  const candles = buildCandles(values);
+  context.clearRect(0, 0, canvas.width, canvas.height);
 
+  if (!candles.length) {
+    return;
+  }
+
+  const plot = {
+    left: 18,
+    right: canvas.width - 70,
+    top: 16,
+    bottom: canvas.height - 26,
+  };
+  const volumeTop = canvas.height - 54;
+  const min = Math.min(...candles.map((candle) => candle.low));
+  const max = Math.max(...candles.map((candle) => candle.high));
+  const volumeMax = Math.max(...candles.map((candle) => candle.volume));
+  const xStep = (plot.right - plot.left) / candles.length;
+  const candleWidth = Math.max(xStep * 0.58, 8);
+  const labelValues = Array.from({ length: 4 }, (_, index) => max - ((max - min) / 3) * index);
+
+  const backdrop = context.createLinearGradient(0, plot.top, 0, plot.bottom);
+  backdrop.addColorStop(0, "rgba(116, 230, 245, 0.05)");
+  backdrop.addColorStop(1, "rgba(8, 16, 28, 0)");
+  context.fillStyle = backdrop;
+  context.fillRect(plot.left, plot.top, plot.right - plot.left, plot.bottom - plot.top);
+
+  context.lineWidth = 1;
+  context.strokeStyle = "rgba(255,255,255,0.06)";
+  context.setLineDash([5, 6]);
+  labelValues.forEach((value) => {
+    const y = mapRange(value, min, max, plot.bottom, plot.top);
+    context.beginPath();
+    context.moveTo(plot.left, y);
+    context.lineTo(plot.right, y);
+    context.stroke();
+    context.fillStyle = "rgba(197, 214, 235, 0.72)";
+    context.font = "12px Plus Jakarta Sans";
+    context.textAlign = "left";
+    context.fillText(shortCurrency(value), plot.right + 12, y + 4);
+  });
+  context.setLineDash([]);
+
+  candles.forEach((candle, index) => {
+    const centerX = plot.left + xStep * index + xStep / 2;
+    const openY = mapRange(candle.open, min, max, plot.bottom, plot.top);
+    const closeY = mapRange(candle.close, min, max, plot.bottom, plot.top);
+    const highY = mapRange(candle.high, min, max, plot.bottom, plot.top);
+    const lowY = mapRange(candle.low, min, max, plot.bottom, plot.top);
+    const rising = candle.close >= candle.open;
+    const bodyTop = Math.min(openY, closeY);
+    const bodyHeight = Math.max(Math.abs(closeY - openY), 3);
+    const candleColor = rising ? "#74e6f5" : "#f4b25d";
+
+    context.strokeStyle = candleColor;
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(centerX, highY);
+    context.lineTo(centerX, lowY);
+    context.stroke();
+
+    context.fillStyle = candleColor;
+    context.fillRect(centerX - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+
+    const volumeHeight = ((candle.volume / volumeMax) * 20) || 2;
+    context.fillStyle = rising ? "rgba(116, 230, 245, 0.22)" : "rgba(244, 178, 93, 0.22)";
+    context.fillRect(centerX - candleWidth / 2, volumeTop + (20 - volumeHeight), candleWidth, volumeHeight);
+  });
+
+  const movingAverage = buildMovingAverage(candles.map((candle) => candle.close), 4);
+  context.strokeStyle = "rgba(201, 230, 255, 0.84)";
+  context.lineWidth = 2;
   context.beginPath();
-  values.forEach((value, index) => {
-    const x = pad + index * xStep;
-    const ratio = max === min ? 0.5 : (value - min) / (max - min);
-    const y = canvas.height - pad - ratio * (canvas.height - pad * 2);
+  movingAverage.forEach((value, index) => {
+    const centerX = plot.left + xStep * index + xStep / 2;
+    const y = mapRange(value, min, max, plot.bottom, plot.top);
     if (index === 0) {
-      context.moveTo(x, y);
+      context.moveTo(centerX, y);
     } else {
-      context.lineTo(x, y);
+      context.lineTo(centerX, y);
     }
   });
-  context.lineWidth = 3;
-  context.strokeStyle = "#74e6f5";
   context.stroke();
 
-  context.lineTo(canvas.width - pad, canvas.height - pad);
-  context.lineTo(pad, canvas.height - pad);
-  context.closePath();
-  context.fillStyle = gradient;
-  context.fill();
+  context.fillStyle = "rgba(255,255,255,0.12)";
+  context.fillRect(plot.left, volumeTop - 8, plot.right - plot.left, 1);
+
+  renderHeroChartMeta(values, btc);
+}
+
+function renderHeroChartMeta(values, btc) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  dom.heroChartPrice.textContent = Northstar.formatCurrency(btc.priceUsd);
+  dom.heroChartChange.textContent = Northstar.formatPercent(btc.priceChange24hPct);
+  dom.heroChartChange.className = Northstar.signedClass(btc.priceChange24hPct);
+  dom.heroChartRange.textContent = `${shortCurrency(min)} - ${shortCurrency(max)}`;
+  dom.heroChartStatus.textContent = `Market-linked BTC view updated ${formatShortTime(new Date())}`;
+}
+
+function buildRenderableSeries(symbol, latestPrice, changePct) {
+  const liveSeries = [...(state.priceSeries[symbol] || [])];
+  const targetLength = 18;
+  if (liveSeries.length >= targetLength) {
+    return liveSeries.slice(-targetLength);
+  }
+
+  const generated = [];
+  const basePrice = latestPrice || liveSeries[liveSeries.length - 1] || 0;
+  const amplitude = Math.max(Math.abs(changePct || 0) / 100, 0.006);
+  for (let index = 0; index < targetLength - liveSeries.length; index += 1) {
+    const progress = index / Math.max(targetLength - liveSeries.length - 1, 1);
+    const swing = Math.sin(progress * Math.PI * 3.2) * basePrice * amplitude * 0.55;
+    const pullback = Math.cos(progress * Math.PI * 4.8) * basePrice * 0.0036;
+    const drift = (progress - 0.5) * basePrice * amplitude * -0.8;
+    generated.push(roundPrice(basePrice + swing + pullback + drift));
+  }
+
+  const series = generated.concat(liveSeries).slice(-targetLength);
+  if (series.length) {
+    series[series.length - 1] = roundPrice(latestPrice);
+  }
+  return series;
+}
+
+function buildCandles(series) {
+  return series.map((close, index) => {
+    const open = index === 0 ? close * 0.996 : series[index - 1];
+    const midpoint = (open + close) / 2;
+    const wick = Math.max(Math.abs(close - open) * 0.7, midpoint * 0.0014);
+    return {
+      open,
+      close,
+      high: Math.max(open, close) + wick,
+      low: Math.min(open, close) - wick,
+      volume: Math.max(wick * 260, midpoint * 0.08),
+    };
+  });
+}
+
+function buildMovingAverage(values, period) {
+  return values.map((_, index) => {
+    const start = Math.max(0, index - period + 1);
+    const slice = values.slice(start, index + 1);
+    const total = slice.reduce((sum, value) => sum + value, 0);
+    return total / slice.length;
+  });
+}
+
+function syncCanvasSize(canvas) {
+  const ratio = window.devicePixelRatio || 1;
+  const bounds = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(bounds.width * ratio));
+  const height = Math.max(1, Math.round(bounds.height * ratio));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function mapRange(value, inMin, inMax, outMin, outMax) {
+  if (inMax === inMin) {
+    return (outMin + outMax) / 2;
+  }
+  const ratio = (value - inMin) / (inMax - inMin);
+  return outMin + (outMax - outMin) * ratio;
+}
+
+function shortCurrency(value) {
+  if (Math.abs(value) >= 1000) {
+    return `$${Math.round(value).toLocaleString()}`;
+  }
+  return Northstar.formatCurrency(value);
+}
+
+function roundPrice(value) {
+  return Math.round(value * 100) / 100;
+}
+
+function formatShortTime(date) {
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }

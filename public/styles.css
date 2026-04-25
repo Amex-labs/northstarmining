@@ -378,12 +378,75 @@ h3 {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.console-chart {
+  padding: 18px;
+}
+
+.console-chart-head {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.chart-metric,
+.chart-summary-row article {
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.chart-metric span,
+.chart-summary-row span {
+  display: block;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chart-metric strong,
+.chart-summary-row strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.15rem;
+}
+
+.chart-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(116, 230, 245, 0.1), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(116, 230, 245, 0.16);
+  color: #dff9ff;
+  font-size: 0.92rem;
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #74e6f5;
+  box-shadow: 0 0 0 6px rgba(116, 230, 245, 0.12);
+}
+
 .console-chart,
 .chart-panel canvas {
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.console-chart canvas,
+.chart-panel canvas {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .section-block,
@@ -1032,6 +1095,13 @@ input[type="range"] {
   min-height: 420px;
 }
 
+.chart-summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .contract-card,
 .thread-card {
   padding: 18px;
@@ -1114,6 +1184,11 @@ input[type="range"] {
     align-items: flex-start;
   }
 
+  .console-chart-head,
+  .chart-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .site-footer {
     grid-template-columns: 1fr;
   }
@@ -1155,8 +1230,14 @@ input[type="range"] {
   .trust-points,
   .metric-row,
   .console-market,
-  .estimate-kpis {
+  .estimate-kpis,
+  .console-chart-head,
+  .chart-summary-row {
     grid-template-columns: 1fr;
+  }
+
+  .chart-status {
+    justify-content: flex-start;
   }
 
   .dashboard-main {
