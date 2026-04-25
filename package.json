@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=20"
   },
+  "dependencies": {
+    "pg": "^8.11.5"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"

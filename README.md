@@ -6,11 +6,11 @@ Northstar Mining Platform is a responsive, trust-first crypto mining service dem
 
 - Premium public landing page with live operational stats
 - Mining plans and ASIC marketplace with interactive profitability calculator
-- User registration, login, email verification, and optional authenticator-based 2FA
+- User registration, login, and optional authenticator-based 2FA
 - Logged-in dashboard with balances, contracts, earnings history, withdrawals, and notifications
 - Real-time live stats and support chat over WebSockets
 - Admin console for user management, earnings adjustments, support monitoring, and announcement broadcasts
-- Local email preview outbox for verification and operational notifications
+- Local email preview outbox for operational notifications
 
 ## Run locally
 
@@ -31,8 +31,9 @@ Then open the local app in your browser after the server starts.
 
 - Earnings are estimates derived from simulated market data and operational assumptions.
 - No guaranteed returns are shown anywhere in the app.
-- Verification and announcement emails are written to `outbox/email`.
-- The data store is file-backed for demo purposes and lives at `data/store.json`.
+- Operational notification previews are written to `outbox/email`.
+- Local development uses a file-backed store at `data/store.json`.
+- If `DATABASE_URL` is set, the app stores account and dashboard data in Postgres instead.
 
 ## Deploy
 
@@ -47,7 +48,9 @@ Manual settings if you create the service in the dashboard:
 - Build command: `npm install`
 - Start command: `npm start`
 - Health check path: `/api/health`
+- Environment variable: `TOKEN_SECRET` = any long random secret
+- Environment variable: `DATABASE_URL` = your Render Postgres internal connection string
 
 The app reads `PORT` from the environment, so it works with Render's assigned port automatically.
 
-Because runtime data is file-backed, a fresh deploy will seed demo data automatically if `data/store.json` does not exist.
+Important for Render free web services: local files are ephemeral and are lost on spin-down, restart, or redeploy. To keep registered accounts, balances, and support history, create a Render Postgres database and connect it through `DATABASE_URL`.

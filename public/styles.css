@@ -123,8 +123,22 @@ h3 {
 .stack-list small,
 .support-system,
 .security-state,
-.auth-status {
+.auth-status,
+.form-status {
   color: var(--muted);
+}
+
+.form-status {
+  min-height: 1.3em;
+  margin: 10px 0 0;
+}
+
+.form-status.success {
+  color: var(--success);
+}
+
+.form-status.error {
+  color: var(--danger);
 }
 
 .topnav,
@@ -1144,6 +1158,15 @@ input[type="range"] {
   padding: 14px 12px;
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.data-table tbody tr[data-user-pick] {
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.data-table tbody tr[data-user-pick]:hover {
+  background: rgba(116, 230, 245, 0.06);
 }
 
 .secret-box {

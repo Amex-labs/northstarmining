@@ -7,3 +7,8 @@ services:
     startCommand: npm start
     autoDeploy: true
     healthCheckPath: /api/health
+    envVars:
+      - key: TOKEN_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

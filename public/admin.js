@@ -2,6 +2,7 @@ const adminState = {
   overview: null,
   socket: null,
   selectedThreadId: null,
+  selectedAdjustmentUserId: null,
 };
 
 const adminDom = {
@@ -22,11 +23,13 @@ const adminDom = {
   userTableBody: document.querySelector("#userTableBody"),
   adjustUserSelect: document.querySelector("#adjustUserSelect"),
   adjustmentForm: document.querySelector("#adjustmentForm"),
+  adjustmentStatus: document.querySelector("#adjustmentStatus"),
   threadList: document.querySelector("#threadList"),
   adminSupportFeed: document.querySelector("#adminSupportFeed"),
   adminSupportForm: document.querySelector("#adminSupportForm"),
   adminSupportInput: document.querySelector("#adminSupportInput"),
   broadcastForm: document.querySelector("#broadcastForm"),
+  broadcastStatus: document.querySelector("#broadcastStatus"),
   auditLog: document.querySelector("#auditLog"),
 };
 
@@ -51,6 +54,9 @@ function bindAdminEvents() {
     window.location.href = "/";
   });
   adminDom.adjustmentForm.addEventListener("submit", handleAdjustment);
+  adminDom.adjustUserSelect.addEventListener("change", () => {
+    adminState.selectedAdjustmentUserId = adminDom.adjustUserSelect.value;
+  });
   adminDom.broadcastForm.addEventListener("submit", handleBroadcast);
   adminDom.adminSupportForm.addEventListener("submit", handleAdminReply);
 }
@@ -112,7 +118,7 @@ function renderAdmin() {
   adminDom.userTableBody.innerHTML = users
     .map(
       (user) => `
-        <tr>
+        <tr data-user-pick="${user.id}">
           <td><strong>${user.fullName}</strong><br /><small>${user.email}</small></td>
           <td>${Northstar.formatCurrency(user.walletBalanceUsd)}<br /><small>Pending ${Northstar.formatCurrency(user.pendingBalanceUsd)}</small></td>
           <td>${user.contractCount}<br /><small>${user.demoMode ? "Demo" : "Live"}</small></td>
@@ -123,9 +129,14 @@ function renderAdmin() {
     )
     .join("");
 
+  const currentAdjustUserId = adminState.selectedAdjustmentUserId || adminDom.adjustUserSelect.value || users[0]?.id || "";
   adminDom.adjustUserSelect.innerHTML = users
     .map((user) => `<option value="${user.id}">${user.fullName} (${user.email})</option>`)
     .join("");
+  if (users.some((user) => user.id === currentAdjustUserId)) {
+    adminDom.adjustUserSelect.value = currentAdjustUserId;
+  }
+  adminState.selectedAdjustmentUserId = adminDom.adjustUserSelect.value;
 
   adminDom.pendingWithdrawalList.innerHTML = pendingWithdrawals.length
     ? pendingWithdrawals
@@ -180,6 +191,15 @@ function renderAdmin() {
     });
   });
 
+  document.querySelectorAll("[data-user-pick]").forEach((row) => {
+    row.addEventListener("click", () => {
+      adminState.selectedAdjustmentUserId = row.dataset.userPick;
+      adminDom.adjustUserSelect.value = adminState.selectedAdjustmentUserId;
+      setFormStatus(adminDom.adjustmentStatus, `Selected ${users.find((user) => user.id === row.dataset.userPick)?.fullName || "user"} for manual balance updates.`, "success");
+      adminDom.adjustUserSelect.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  });
+
   document.querySelectorAll("[data-thread-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       adminState.selectedThreadId = button.dataset.threadJump;
@@ -211,38 +231,52 @@ function renderSelectedThread() {
 
 async function handleAdjustment(event) {
   event.preventDefault();
-  const formData = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const selectedUserId = String(formData.get("userId") || "");
+  adminState.selectedAdjustmentUserId = selectedUserId;
+  setFormStatus(adminDom.adjustmentStatus, "");
   try {
-    await Northstar.api("/api/admin/adjust", {
+    const response = await Northstar.api("/api/admin/adjust", {
       method: "POST",
       body: {
-        userId: formData.get("userId"),
+        userId: selectedUserId,
         amountUsd: Number(formData.get("amountUsd")),
         note: formData.get("note"),
       },
     });
-    event.currentTarget.reset();
     await refreshAdmin();
+    form.querySelector('[name="amountUsd"]').value = "";
+    form.querySelector('[name="note"]').value = "";
+    adminDom.adjustUserSelect.value = adminState.selectedAdjustmentUserId;
+    setFormStatus(
+      adminDom.adjustmentStatus,
+      response.message || "Balance update posted successfully.",
+      "success"
+    );
   } catch (error) {
-    alert(error.message);
+    setFormStatus(adminDom.adjustmentStatus, error.message, "error");
   }
 }
 
 async function handleBroadcast(event) {
   event.preventDefault();
-  const formData = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  setFormStatus(adminDom.broadcastStatus, "");
   try {
-    await Northstar.api("/api/admin/broadcast", {
+    const response = await Northstar.api("/api/admin/broadcast", {
       method: "POST",
       body: {
         title: formData.get("title"),
         message: formData.get("message"),
       },
     });
-    event.currentTarget.reset();
+    form.reset();
     await refreshAdmin();
+    setFormStatus(adminDom.broadcastStatus, response.message || "Announcement sent successfully.", "success");
   } catch (error) {
-    alert(error.message);
+    setFormStatus(adminDom.broadcastStatus, error.message, "error");
   }
 }
 
@@ -275,4 +309,15 @@ function handleAdminReply(event) {
     })
   );
   adminDom.adminSupportInput.value = "";
+}
+
+function setFormStatus(element, message, tone) {
+  if (!element) {
+    return;
+  }
+  element.textContent = message || "";
+  element.className = "form-status";
+  if (tone) {
+    element.classList.add(tone);
+  }
 }

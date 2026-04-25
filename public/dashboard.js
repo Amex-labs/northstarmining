@@ -25,6 +25,7 @@ const dashboardDom = {
   withdrawAsset: document.querySelector("#withdrawAsset"),
   withdrawNetwork: document.querySelector("#withdrawNetwork"),
   withdrawalList: document.querySelector("#withdrawalList"),
+  withdrawalStatus: document.querySelector("#withdrawalStatus"),
   securityState: document.querySelector("#securityState"),
   setup2faButton: document.querySelector("#setup2faButton"),
   enable2faButton: document.querySelector("#enable2faButton"),
@@ -35,6 +36,7 @@ const dashboardDom = {
   dashboardSupportForm: document.querySelector("#dashboardSupportForm"),
   dashboardSupportInput: document.querySelector("#dashboardSupportInput"),
   ticketForm: document.querySelector("#ticketForm"),
+  ticketStatus: document.querySelector("#ticketStatus"),
   notificationList: document.querySelector("#notificationList"),
 };
 
@@ -350,9 +352,11 @@ function formatChartDate(value) {
 
 async function handleWithdrawal(event) {
   event.preventDefault();
-  const formData = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  setFormStatus(dashboardDom.withdrawalStatus, "");
   try {
-    await Northstar.api("/api/dashboard/withdraw", {
+    const response = await Northstar.api("/api/dashboard/withdraw", {
       method: "POST",
       body: {
         amountUsd: Number(formData.get("amountUsd")),
@@ -361,29 +365,37 @@ async function handleWithdrawal(event) {
         address: formData.get("address"),
       },
     });
-    event.currentTarget.reset();
-    populateWithdrawalAssets();
+    form.reset();
     await refreshDashboard();
+    populateWithdrawalAssets();
+    setFormStatus(
+      dashboardDom.withdrawalStatus,
+      response.message || "Withdrawal request submitted. It is currently under review.",
+      "success"
+    );
   } catch (error) {
-    alert(error.message);
+    setFormStatus(dashboardDom.withdrawalStatus, error.message, "error");
   }
 }
 
 async function handleTicket(event) {
   event.preventDefault();
-  const formData = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  setFormStatus(dashboardDom.ticketStatus, "");
   try {
-    await Northstar.api("/api/dashboard/tickets", {
+    const response = await Northstar.api("/api/dashboard/tickets", {
       method: "POST",
       body: {
         subject: formData.get("subject"),
         message: formData.get("message"),
       },
     });
-    event.currentTarget.reset();
+    form.reset();
     await refreshDashboard();
+    setFormStatus(dashboardDom.ticketStatus, response.message || "Support ticket submitted.", "success");
   } catch (error) {
-    alert(error.message);
+    setFormStatus(dashboardDom.ticketStatus, error.message, "error");
   }
 }
 
@@ -447,6 +459,17 @@ function handleSupportReply(event) {
   }
   dashboardState.socket.send(JSON.stringify({ type: "supportMessage", body }));
   dashboardDom.dashboardSupportInput.value = "";
+}
+
+function setFormStatus(element, message, tone) {
+  if (!element) {
+    return;
+  }
+  element.textContent = message || "";
+  element.className = "form-status";
+  if (tone) {
+    element.classList.add(tone);
+  }
 }
 
 async function startTwoFactorSetup() {

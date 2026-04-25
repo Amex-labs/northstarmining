@@ -115,6 +115,7 @@
               <label>Wallet address <input name="address" required /></label>
               <button class="primary-button wide" type="submit">Submit withdrawal</button>
             </form>
+            <p class="form-status" id="withdrawalStatus" role="status" aria-live="polite"></p>
             <p class="muted-copy">Every withdrawal request opens a live operations thread so the admin team can confirm network, wallet ownership, and release timing with you directly.</p>
             <div class="stack-list" id="withdrawalList"></div>
           </article>
@@ -166,6 +167,7 @@
               <label>Message <textarea name="message" rows="4" required></textarea></label>
               <button class="secondary-button wide" type="submit">Submit ticket</button>
             </form>
+            <p class="form-status" id="ticketStatus" role="status" aria-live="polite"></p>
             <div class="stack-list" id="notificationList"></div>
           </article>
         </section>

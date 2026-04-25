@@ -11,6 +11,8 @@ const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 const DATA_DIR = path.join(ROOT_DIR, "data");
 const OUTBOX_DIR = path.join(ROOT_DIR, "outbox", "email");
 const STORE_PATH = path.join(DATA_DIR, "store.json");
+const STORE_KEY = "northstar-primary-store";
+const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const TOKEN_SECRET = process.env.TOKEN_SECRET || "northstar-demo-secret";
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -22,6 +24,13 @@ const BRAND = {
   tag: "Transparent, market-linked mining operations",
   legal: "Northstar Mining Platform",
 };
+
+const PRIMARY_FACILITY_CITY = "West Palm Beach, FL";
+const DEFAULT_ANNOUNCEMENT_TITLE = "Florida facility update";
+const DEFAULT_ANNOUNCEMENT_MESSAGE =
+  "Cooling and airflow settings were updated across our West Palm Beach facility. No client action is required, and uptime targets remain unchanged.";
+const DEFAULT_THREAD_WELCOME_MESSAGE =
+  "Welcome. Our U.S. operations desk is here to help with onboarding, operations, and withdrawal questions.";
 
 const COIN_PROFILES = {
   BTC: {
@@ -85,7 +94,7 @@ const PLAN_LIBRARY = [
     hostingFeeDailyUsd: 0.92,
     uptimeTargetPct: 97.4,
     defaultTermMonths: 12,
-    dataCenter: "Reno, US",
+    dataCenter: PRIMARY_FACILITY_CITY,
     deploymentWindowDays: 12,
     warrantyDays: 365,
     image: "/assets/miner-z15-pro.svg",
@@ -106,7 +115,7 @@ const PLAN_LIBRARY = [
     hostingFeeDailyUsd: 0.42,
     uptimeTargetPct: 97.8,
     defaultTermMonths: 12,
-    dataCenter: "Kaduna, NG",
+    dataCenter: PRIMARY_FACILITY_CITY,
     deploymentWindowDays: 9,
     warrantyDays: 365,
     image: "https://www.inibox.io/wp-content/uploads/2026/02/alk-1.webp",
@@ -127,7 +136,7 @@ const PLAN_LIBRARY = [
     hostingFeeDailyUsd: 0.68,
     uptimeTargetPct: 98.2,
     defaultTermMonths: 18,
-    dataCenter: "Lulea, SE",
+    dataCenter: PRIMARY_FACILITY_CITY,
     deploymentWindowDays: 11,
     warrantyDays: 365,
     image: "https://www.inibox.io/wp-content/uploads/2026/02/6.png",
@@ -148,7 +157,7 @@ const PLAN_LIBRARY = [
     hostingFeeDailyUsd: 2.95,
     uptimeTargetPct: 98.9,
     defaultTermMonths: 24,
-    dataCenter: "Reykjanes, IS",
+    dataCenter: PRIMARY_FACILITY_CITY,
     deploymentWindowDays: 24,
     warrantyDays: 365,
     image: "/assets/miner-s21e-hyd-3u.svg",
@@ -243,7 +252,7 @@ const DISCLOSURES = [
 
 const COMPANY = {
   founded: 2021,
-  headquarters: "London, United Kingdom",
+  headquarters: "West Palm Beach, Florida, United States",
   operations: ["3074 Powder House Road, West Palm Beach, FL 33417, USA"],
   supportCoverage: "24/7 ticketing, live operations desk 06:00-22:00 UTC",
   whatsappNumber: "+13659172311",
@@ -299,8 +308,8 @@ const MIME_TYPES = {
 };
 
 const wsClients = new Set();
-
-ensureRuntime();
+let storeCache = null;
+let pgPool = null;
 
 const server = http.createServer((req, res) => {
   Promise.resolve(routeRequest(req, res)).catch((error) => {
@@ -311,9 +320,16 @@ const server = http.createServer((req, res) => {
 
 server.on("upgrade", handleUpgrade);
 
-server.listen(PORT, HOST, () => {
-  console.log(`${BRAND.name} listening on http://${HOST}:${PORT}`);
-});
+ensureRuntime()
+  .then(() => {
+    server.listen(PORT, HOST, () => {
+      console.log(`${BRAND.name} listening on http://${HOST}:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Runtime bootstrap failed", error);
+    process.exit(1);
+  });
 
 setInterval(() => {
   try {
@@ -323,14 +339,27 @@ setInterval(() => {
   }
 }, 5000);
 
-function ensureRuntime() {
+async function ensureRuntime() {
   fs.mkdirSync(PUBLIC_DIR, { recursive: true });
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(OUTBOX_DIR, { recursive: true });
 
-  if (!fs.existsSync(STORE_PATH)) {
-    writeStore(buildInitialStore());
+  if (DATABASE_URL) {
+    await ensureDatabaseStore();
+    return;
   }
+
+  if (process.env.RENDER === "true") {
+    console.warn("DATABASE_URL is not set. Render will reset file-backed account data on restart or spin-down.");
+  }
+
+  if (!fs.existsSync(STORE_PATH)) {
+    storeCache = buildInitialStore();
+    fs.writeFileSync(STORE_PATH, JSON.stringify(storeCache, null, 2));
+    return;
+  }
+
+  storeCache = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
 }
 
 function buildInitialStore() {
@@ -363,7 +392,7 @@ function buildInitialStore() {
   ];
   previewUser.earningsHistory = buildHistoricalEarnings(previewUser.activeContracts, 36);
   previewUser.notifications = [
-    createNotification("Welcome aboard", "Your account workspace is live. Explore the dashboard, payouts, and plan reporting to get comfortable with the platform from day one.", "info"),
+    createNotification("Welcome aboard", "Your account workspace is live. Explore balances, payouts, and reporting from one U.S.-based operations workspace built for day-one clarity.", "info"),
     createNotification("Estimate update", "Your INI estimate refreshed with the latest market conditions. Review the profitability panel to see today's range and operating assumptions.", "warning"),
   ];
   previewUser.withdrawals = [
@@ -416,8 +445,8 @@ function buildInitialStore() {
     announcements: [
       {
         id: randomId("announce"),
-        title: "Cooling optimization update",
-        message: "Kaduna racks moved to revised airflow scheduling. No customer action required. Uptime targets remain unchanged.",
+        title: DEFAULT_ANNOUNCEMENT_TITLE,
+        message: DEFAULT_ANNOUNCEMENT_MESSAGE,
         createdAt: new Date(Date.now() - 3600000).toISOString(),
       },
     ],
@@ -695,7 +724,12 @@ function handleRegister(store, body, res) {
   if (demoMode) {
     user.activeContracts.push(createContract("zec-z15-pro", "ZEC", 0.08, 12, 3));
     user.earningsHistory = buildHistoricalEarnings(user.activeContracts, 30);
-    addNotification(user, "Onboarding workspace ready", "We provisioned a guided starter contract so you can review dashboards and withdrawals before activating additional capacity.", "info");
+    addNotification(
+      user,
+      "Onboarding workspace ready",
+      "We provisioned a guided starter contract so you can review dashboards, withdrawals, and support from a U.S.-based operations workspace before activating additional capacity.",
+      "info"
+    );
   }
 
   user.verificationCode = null;
@@ -867,7 +901,10 @@ function handleWithdrawal(store, user, body, res) {
   );
   broadcastThreadUpdate(store, thread.id);
 
-  sendJson(res, 200, { success: true });
+  sendJson(res, 200, {
+    success: true,
+    message: `${NorthstarAmount(amountUsd)} withdrawal request submitted. It is now under review by the operations desk.`,
+  });
 }
 
 function handleTicket(store, user, body, res) {
@@ -892,7 +929,7 @@ function handleTicket(store, user, body, res) {
   addNotification(user, "Support ticket received", "Our operations team will respond in the ticket feed or live chat.", "info");
   writeStore(store);
   broadcastThreadUpdate(store, thread.id);
-  sendJson(res, 201, { success: true });
+  sendJson(res, 201, { success: true, message: "Support ticket submitted successfully. Our operations desk will follow up shortly." });
 }
 
 function handleAdjustment(store, admin, body, res) {
@@ -908,6 +945,15 @@ function handleAdjustment(store, admin, body, res) {
 
   user.walletBalance = round(user.walletBalance + amountUsd, 2);
   addNotification(user, "Balance adjustment posted", `${note} (${amountUsd >= 0 ? "+" : ""}$${amountUsd.toFixed(2)})`, amountUsd >= 0 ? "success" : "warning");
+  const thread = getOrCreateThread(store, user);
+  thread.updatedAt = new Date().toISOString();
+  thread.messages.push(
+    createSupportMessage(
+      "admin",
+      "Northstar Operations",
+      `A manual wallet adjustment of ${amountUsd >= 0 ? "+" : ""}${NorthstarAmount(Math.abs(amountUsd))} was posted to your account. Note: ${note}`
+    )
+  );
   store.auditLog.unshift({
     id: randomId("audit"),
     type: "adjustment",
@@ -915,8 +961,11 @@ function handleAdjustment(store, admin, body, res) {
     createdAt: new Date().toISOString(),
   });
   writeStore(store);
-  broadcastThreadUpdate(store, user.supportThreadId);
-  sendJson(res, 200, { success: true });
+  broadcastThreadUpdate(store, thread.id);
+  sendJson(res, 200, {
+    success: true,
+    message: `Balance updated for ${user.fullName}.`,
+  });
 }
 
 function handleBroadcast(store, admin, body, res) {
@@ -952,7 +1001,7 @@ function handleBroadcast(store, admin, body, res) {
 
   writeStore(store);
   broadcastMarketSnapshot();
-  sendJson(res, 200, { success: true });
+  sendJson(res, 200, { success: true, message: "Announcement published successfully." });
 }
 
 function buildPublicOverview(store) {
@@ -1135,6 +1184,45 @@ function createContract(planId, coinSymbol, electricityRate, termMonths, started
   };
 }
 
+function normalizeContractRecord(contract) {
+  const plan = PLAN_LIBRARY.find((entry) => entry.id === contract.planId);
+  if (!plan) {
+    return contract;
+  }
+  return {
+    ...contract,
+    name: plan.name,
+    algorithm: plan.algorithm,
+    supportedCoins: plan.supportedCoins,
+    hashrateHs: plan.hashrateHs,
+    hashrateLabel: plan.hashrateLabel,
+    powerWatts: plan.powerWatts,
+    powerLabel: plan.powerLabel,
+    efficiencyLabel: plan.efficiencyLabel,
+    dataCenter: plan.dataCenter,
+    startingPriceUsd: plan.startingPriceUsd,
+    hardwarePriceUsd: plan.hardwarePriceUsd,
+    uptimeTargetPct: plan.uptimeTargetPct,
+    hostingFeeDailyUsd: plan.hostingFeeDailyUsd,
+  };
+}
+
+function normalizeAnnouncement(item) {
+  if (!item) {
+    return item;
+  }
+  const title = String(item.title || "").trim();
+  const message = String(item.message || "").trim();
+  if (title === "Cooling optimization update" || /Kaduna racks moved/i.test(message)) {
+    return {
+      ...item,
+      title: DEFAULT_ANNOUNCEMENT_TITLE,
+      message: DEFAULT_ANNOUNCEMENT_MESSAGE,
+    };
+  }
+  return item;
+}
+
 function buildHistoricalEarnings(contracts, days) {
   const history = [];
   for (let index = days - 1; index >= 0; index -= 1) {
@@ -1262,15 +1350,23 @@ function buildMarketState(atTime = Date.now()) {
 }
 
 function readStore() {
-  const store = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
+  if (DATABASE_URL && !storeCache) {
+    throw new Error("Persistent store is not initialized.");
+  }
+
+  const source =
+    storeCache || (fs.existsSync(STORE_PATH) ? JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) : buildInitialStore());
+  const store = cloneStore(source);
   store.company = COMPANY;
   store.supportProfile = SUPPORT_PROFILE;
   store.plans = PLAN_LIBRARY;
   store.hardware = HARDWARE_LIBRARY;
   store.faqs = FAQS;
   store.disclosures = DISCLOSURES;
+  store.announcements = (store.announcements || []).map(normalizeAnnouncement);
   store.users = (store.users || []).map((user) => ({
     ...user,
+    activeContracts: (user.activeContracts || []).map(normalizeContractRecord),
     withdrawals: (user.withdrawals || []).map((item) => ({
       ...item,
       asset: item.asset || "BTC",
@@ -1282,7 +1378,61 @@ function readStore() {
 }
 
 function writeStore(store) {
-  fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
+  storeCache = cloneStore(store);
+
+  if (DATABASE_URL) {
+    persistStoreToDatabase(storeCache).catch((error) => {
+      console.error("Failed to persist store to Postgres", error);
+    });
+    return;
+  }
+
+  fs.writeFileSync(STORE_PATH, JSON.stringify(storeCache, null, 2));
+}
+
+async function ensureDatabaseStore() {
+  const { Pool } = require("pg");
+  pgPool = new Pool({
+    connectionString: DATABASE_URL,
+    max: 4,
+  });
+
+  await pgPool.query(`
+    CREATE TABLE IF NOT EXISTS app_store (
+      store_key TEXT PRIMARY KEY,
+      payload JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  const result = await pgPool.query("SELECT payload FROM app_store WHERE store_key = $1", [STORE_KEY]);
+  if (!result.rowCount) {
+    storeCache = buildInitialStore();
+    await persistStoreToDatabase(storeCache);
+    return;
+  }
+
+  storeCache = result.rows[0].payload;
+}
+
+async function persistStoreToDatabase(store) {
+  if (!pgPool) {
+    return;
+  }
+
+  await pgPool.query(
+    `
+      INSERT INTO app_store (store_key, payload, updated_at)
+      VALUES ($1, $2::jsonb, NOW())
+      ON CONFLICT (store_key)
+      DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+    `,
+    [STORE_KEY, JSON.stringify(store)]
+  );
+}
+
+function cloneStore(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function readJsonBody(req) {
@@ -1489,7 +1639,7 @@ function createSupportThread(user) {
     title: "New account onboarding",
     priority: user.demoMode ? "normal" : "high",
     updatedAt: new Date().toISOString(),
-    messages: [createSupportMessage("system", "Northstar Bot", "Welcome. The support desk is here to answer onboarding, operations, and withdrawal questions.")],
+    messages: [createSupportMessage("system", "Northstar Bot", DEFAULT_THREAD_WELCOME_MESSAGE)],
     tickets: [],
   };
 }
