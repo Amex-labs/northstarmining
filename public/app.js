@@ -40,7 +40,6 @@ const dom = {
   authStatus: document.querySelector("#authStatus"),
   registerForm: document.querySelector("#registerForm"),
   loginForm: document.querySelector("#loginForm"),
-  verifyForm: document.querySelector("#verifyForm"),
   supportToggle: document.querySelector("#supportToggle"),
   supportPanel: document.querySelector("#supportPanel"),
   supportClose: document.querySelector("#supportClose"),
@@ -78,7 +77,6 @@ function bindEvents() {
 
   dom.registerForm.addEventListener("submit", handleRegister);
   dom.loginForm.addEventListener("submit", handleLogin);
-  dom.verifyForm.addEventListener("submit", handleVerify);
   dom.calculatorForm.addEventListener("submit", (event) => {
     event.preventDefault();
     updateEstimate();
@@ -350,13 +348,12 @@ function closeAuth() {
 }
 
 function setAuthTab(tab) {
-  state.activeAuthTab = tab;
+  state.activeAuthTab = tab === "verify" ? "login" : tab;
   document.querySelectorAll("[data-auth-tab]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.authTab === tab);
+    button.classList.toggle("active", button.dataset.authTab === state.activeAuthTab);
   });
-  dom.registerForm.classList.toggle("hidden", tab !== "register");
-  dom.loginForm.classList.toggle("hidden", tab !== "login");
-  dom.verifyForm.classList.toggle("hidden", tab !== "verify");
+  dom.registerForm.classList.toggle("hidden", state.activeAuthTab !== "register");
+  dom.loginForm.classList.toggle("hidden", state.activeAuthTab !== "login");
 }
 
 async function handleRegister(event) {
@@ -372,9 +369,10 @@ async function handleRegister(event) {
         demoMode: formData.get("demoMode") === "on",
       },
     });
-    dom.authStatus.textContent = `Account created. Verification preview code: ${response.previewCode}`;
-    dom.verifyForm.elements.email.value = formData.get("email");
-    setAuthTab("verify");
+    Northstar.setToken(response.token);
+    dom.authStatus.textContent = "Account created. Redirecting to your dashboard...";
+    closeAuth();
+    window.location.href = response.user.role === "admin" ? "/admin" : "/dashboard";
   } catch (error) {
     dom.authStatus.textContent = error.message;
   }
@@ -400,28 +398,6 @@ async function handleLogin(event) {
       return;
     }
     window.location.href = "/dashboard";
-  } catch (error) {
-    dom.authStatus.textContent = error.message;
-    if (error.message.toLowerCase().includes("verify")) {
-      setAuthTab("verify");
-    }
-  }
-}
-
-async function handleVerify(event) {
-  event.preventDefault();
-  const formData = new FormData(event.currentTarget);
-  try {
-    await Northstar.api("/api/auth/verify-email", {
-      method: "POST",
-      body: {
-        email: formData.get("email"),
-        code: formData.get("code"),
-      },
-    });
-    dom.authStatus.textContent = "Email verified. You can now log in.";
-    dom.loginForm.elements.email.value = formData.get("email");
-    setAuthTab("login");
   } catch (error) {
     dom.authStatus.textContent = error.message;
   }

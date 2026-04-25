@@ -686,7 +686,7 @@ function handleRegister(store, body, res) {
     fullName,
     email,
     password,
-    emailVerified: false,
+    emailVerified: true,
     demoMode,
     walletBalance: demoMode ? 500 : 0,
     pendingBalance: demoMode ? 24 : 0,
@@ -698,20 +698,27 @@ function handleRegister(store, body, res) {
     addNotification(user, "Onboarding workspace ready", "We provisioned a guided starter contract so you can review dashboards and withdrawals before activating additional capacity.", "info");
   }
 
-  user.verificationCode = generateCode();
+  user.verificationCode = null;
   const thread = createSupportThread(user);
   user.supportThreadId = thread.id;
+  addNotification(user, "Account active", "Your account is ready. Sign in, review your dashboard, and enable 2FA any time from the security panel.", "success");
 
   store.users.push(user);
   store.supportThreads.push(thread);
   writeStore(store);
 
-  writeEmailPreview(email, "Verify your Northstar email", `Verification code: ${user.verificationCode}`);
+  const token = signToken({
+    sub: user.id,
+    role: user.role,
+    email: user.email,
+    exp: Date.now() + 7 * 86400000,
+  });
 
   sendJson(res, 201, {
     success: true,
-    message: "Account created. Verify your email to continue.",
-    previewCode: user.verificationCode,
+    message: "Account created. Redirecting to your dashboard.",
+    token,
+    user: sanitizeUser(user),
   });
 }
 
@@ -727,12 +734,9 @@ function handleLogin(store, body, res) {
   }
 
   if (!user.emailVerified) {
-    sendJson(res, 403, {
-      error: "Verify your email before signing in.",
-      requiresVerification: true,
-      previewCode: user.verificationCode,
-    });
-    return;
+    user.emailVerified = true;
+    user.verificationCode = null;
+    addNotification(user, "Account access enabled", "Your account is now active and ready for dashboard access.", "success");
   }
 
   if (user.twoFactor.enabled) {

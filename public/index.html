@@ -271,14 +271,13 @@
         <div class="auth-header">
           <div>
             <p class="eyebrow">Account access</p>
-            <h2>Secure onboarding with verification.</h2>
+            <h2>Secure onboarding with direct account access.</h2>
           </div>
           <button class="ghost-button small" id="authClose" type="button">Close</button>
         </div>
         <div class="auth-tabs">
           <button class="tab-button active" data-auth-tab="register" type="button">Register</button>
           <button class="tab-button" data-auth-tab="login" type="button">Login</button>
-          <button class="tab-button" data-auth-tab="verify" type="button">Verify email</button>
         </div>
         <form class="auth-form" id="registerForm">
           <label>Full name <input name="fullName" required /></label>
@@ -293,12 +292,7 @@
           <label>Authenticator code (if enabled) <input name="code" inputmode="numeric" maxlength="6" /></label>
           <button class="primary-button wide" type="submit">Login</button>
         </form>
-        <form class="auth-form hidden" id="verifyForm">
-          <label>Email <input name="email" type="email" required /></label>
-          <label>Verification code <input name="code" inputmode="numeric" maxlength="6" required /></label>
-          <button class="primary-button wide" type="submit">Verify email</button>
-        </form>
-        <p class="auth-status" id="authStatus">We never promise fixed returns. Verification and 2FA are available for account security.</p>
+        <p class="auth-status" id="authStatus">We never promise fixed returns. New accounts can sign in immediately, and 2FA remains available from the security panel.</p>
       </div>
     </div>
 
