@@ -230,7 +230,7 @@ const FAQS = [
   {
     question: "Can I review projected performance before activating a contract?",
     answer:
-      "Yes. Guided onboarding includes a portfolio walkthrough, example contract reporting, and support-led setup so you can review the workflow before activating funded capacity.",
+      "Yes. New accounts can explore a guided setup, sample contract reporting, and support-led assistance so the platform feels clear before you scale up.",
   },
 ];
 
@@ -251,7 +251,7 @@ const COMPANY = {
   customerEmail: "northstar.mining@aol.com",
   customerEmailUrl: "mailto:northstar.mining@aol.com",
   trustCopy:
-    "Northstar publishes equipment-level assumptions, deployment windows, maintenance notes, and variable yield ranges so operators can review where returns come from before allocating capital.",
+    "Northstar brings machine-level assumptions, deployment timing, client support, and performance visibility into one workspace so clients can get started with more clarity and confidence.",
 };
 
 const SUPPORT_PROFILE = {
@@ -363,8 +363,8 @@ function buildInitialStore() {
   ];
   previewUser.earningsHistory = buildHistoricalEarnings(previewUser.activeContracts, 36);
   previewUser.notifications = [
-    createNotification("Welcome aboard", "Your guided onboarding workspace is active. Review the dashboard and contract reporting before allocating capital.", "info"),
-    createNotification("Yield refresh", "Your INI estimate tightened after a network difficulty increase. Review the profitability panel for updated assumptions.", "warning"),
+    createNotification("Welcome aboard", "Your account workspace is live. Explore the dashboard, payouts, and plan reporting to get comfortable with the platform from day one.", "info"),
+    createNotification("Estimate update", "Your INI estimate refreshed with the latest market conditions. Review the profitability panel to see today's range and operating assumptions.", "warning"),
   ];
   previewUser.withdrawals = [
     {
@@ -996,30 +996,30 @@ function buildPublicOverview(store) {
     heroStats: snapshot,
     announcements: store.announcements.slice(0, 3),
     trustPoints: [
-      "Machine-level operating assumptions published with each plan",
-      "Live profitability estimates refreshed from dynamic market inputs",
-      "Risk disclosure, power costs, and uptime targets visible before sign-up",
+      "Entry-friendly plans with machine specs and assumptions shown up front",
+      "Live estimate ranges updated from current market and network inputs",
+      "Support, disclosures, and operating metrics visible before you commit",
     ],
     roadmap: [
       {
-        title: "Select hardware",
-        detail: "Compare hashrate, power draw, algorithm, and estimated margin under your electricity assumptions.",
+        title: "Choose your starting plan",
+        detail: "Compare ticket size, hashrate, power draw, and estimate range to find a setup that fits your budget.",
       },
       {
-        title: "Model the scenario",
-        detail: "Adjust coin, term, and cost inputs to see variable yield ranges instead of fixed promises.",
+        title: "Review the estimate",
+        detail: "Adjust coin, power cost, and term length to see how daily and monthly estimates move with real market inputs.",
       },
       {
-        title: "Operate with oversight",
-        detail: "Track balances, contracts, uptime, and support tickets from one dashboard after login.",
+        title: "Track everything in one place",
+        detail: "Follow balances, contracts, withdrawals, and support conversations from your dashboard after signup.",
       },
     ],
     transparency: {
       dataCenterImages: ["/assets/datacenter-1.svg", "/assets/datacenter-2.svg"],
       operatingModel:
-        "Northstar hosts ASIC fleets in tiered facilities and publishes the exact energy, maintenance, and uptime assumptions used in the calculator so users can assess downside as well as upside.",
+        "Northstar operates hosted ASIC fleets with published power, maintenance, and uptime assumptions so clients can see how each estimate is built and monitor performance with confidence.",
       legal:
-        "Displayed estimates are calculated from live network data, current operating assumptions, and disclosed fleet performance metrics. Figures refresh continuously, remain market-dependent, and are reviewed with our team before payment or plan activation.",
+        "Displayed estimates are based on live network data, current operating assumptions, and disclosed fleet metrics. Figures refresh continuously and are reviewed alongside our team before any payment or plan activation.",
     },
   };
 }
@@ -1041,7 +1041,7 @@ function buildDashboardSummary(user, store) {
       estimatedMonthlyUsd: round(monthlyUsd, 2),
       deployedPowerKw: round(powerKw, 2),
       totalContracts: contracts.length,
-      riskLabel: "Estimates depend on market price, difficulty, power cost, and uptime.",
+      riskLabel: "Your dashboard updates with live pricing, network difficulty, power cost, and uptime assumptions.",
     },
     contracts,
     earningsHistory: user.earningsHistory.slice(-30),
