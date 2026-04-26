@@ -60,6 +60,7 @@ const dom = {
 init();
 
 async function init() {
+  syncViewportHeight();
   bindEvents();
   syncResponsiveChrome();
   await loadOverview();
@@ -84,6 +85,7 @@ function bindEvents() {
     link.addEventListener("click", () => closeMobileMenu());
   });
 
+  dom.authModal.addEventListener("focusin", handleAuthFieldFocus);
   dom.authClose.addEventListener("click", closeAuth);
   dom.menuToggle?.addEventListener("click", () => toggleMobileMenu());
   dom.supportToggle.addEventListener("click", () => {
@@ -113,11 +115,13 @@ function bindEvents() {
   });
   dom.coinSelect.addEventListener("change", updateEstimate);
   window.addEventListener("resize", () => {
+    syncViewportHeight();
     syncResponsiveChrome();
     if (state.overview) {
       drawHeroChart();
     }
   });
+  window.visualViewport?.addEventListener("resize", syncViewportHeight);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeMobileMenu();
@@ -135,6 +139,30 @@ function bindEvents() {
     }
     closeMobileMenu();
   });
+}
+
+function syncViewportHeight() {
+  const height = Math.round(window.visualViewport?.height || window.innerHeight);
+  document.documentElement.style.setProperty("--viewport-height", `${height}px`);
+}
+
+function handleAuthFieldFocus(event) {
+  if (window.innerWidth > 720) {
+    return;
+  }
+
+  const target = event.target;
+  if (!(target instanceof HTMLElement) || !target.matches("input, textarea, select")) {
+    return;
+  }
+
+  window.setTimeout(() => {
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  }, 180);
 }
 
 function bindPasswordToggles() {
