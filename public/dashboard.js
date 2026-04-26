@@ -15,6 +15,7 @@ const dashboardDom = {
   powerDraw: document.querySelector("#powerDraw"),
   contractCount: document.querySelector("#contractCount"),
   riskLabel: document.querySelector("#riskLabel"),
+  availablePlanList: document.querySelector("#availablePlanList"),
   earningsChart: document.querySelector("#earningsChart"),
   earningsLatest: document.querySelector("#earningsLatest"),
   earningsAverage: document.querySelector("#earningsAverage"),
@@ -88,7 +89,7 @@ async function refreshDashboard() {
 }
 
 function renderDashboard() {
-  const { user, metrics, announcements, contracts, withdrawals, notifications, support } = dashboardState.summary;
+  const { user, metrics, announcements, contracts, withdrawals, notifications, support, availablePlans } = dashboardState.summary;
 
   dashboardDom.userIdentity.textContent = `${user.fullName}\n${user.email}`;
   dashboardDom.demoModeBadge.textContent = user.demoMode ? "Guided onboarding active" : "Live portfolio";
@@ -100,6 +101,7 @@ function renderDashboard() {
   dashboardDom.contractCount.textContent = metrics.totalContracts;
   dashboardDom.riskLabel.textContent = metrics.riskLabel;
   populateWithdrawalAssets();
+  renderAvailablePlans(availablePlans || []);
 
   dashboardDom.announcementList.innerHTML = announcements
     .map(
@@ -266,6 +268,59 @@ function drawEarningsChart(points) {
   });
 }
 
+function renderAvailablePlans(plans) {
+  if (!plans.length) {
+    dashboardDom.availablePlanList.innerHTML = `
+      <article class="dashboard-plan-card empty">
+        <h3>Plans are updating</h3>
+        <p>Our operations desk can still help you choose a machine while live inventory refreshes.</p>
+      </article>
+    `;
+    return;
+  }
+
+  dashboardDom.availablePlanList.innerHTML = plans
+    .map(
+      (plan) => `
+        <article class="dashboard-plan-card">
+          <img src="${plan.image}" alt="${plan.name} mining hardware photo" loading="lazy" />
+          <div class="dashboard-plan-copy">
+            <p class="eyebrow">${plan.algorithm}</p>
+            <h3>${plan.name}</h3>
+            <p>${plan.description}</p>
+          </div>
+          <div class="metric-list">
+            <div><span>Starts from</span><strong>${Northstar.formatCurrency(plan.startingPriceUsd)}</strong></div>
+            <div><span>Hashrate</span><strong>${plan.hashrateLabel}</strong></div>
+            <div><span>Power draw</span><strong>${plan.powerLabel}</strong></div>
+            <div><span>Efficiency</span><strong>${plan.efficiencyLabel}</strong></div>
+            <div><span>Up to daily</span><strong>${plan.featuredDailyUsd ? Northstar.formatCurrency(plan.featuredDailyUsd) : "Variable"}</strong></div>
+            <div><span>Up to monthly</span><strong>${plan.featuredMonthlyUsd ? Northstar.formatCurrency(plan.featuredMonthlyUsd) : "Variable"}</strong></div>
+          </div>
+          <div class="dashboard-plan-actions">
+            ${
+              plan.paymentUrl
+                ? `<a class="primary-button wide" href="${plan.paymentUrl}" target="_blank" rel="noreferrer">Subscribe now</a>`
+                : `<button class="primary-button wide" type="button" data-plan-support="${plan.id}" data-plan-name="${escapeAttribute(plan.name)}" data-plan-price="${plan.startingPriceUsd}">Contact support</button>`
+            }
+            <button class="secondary-button wide" type="button" data-plan-support="${plan.id}" data-plan-name="${escapeAttribute(plan.name)}" data-plan-price="${plan.startingPriceUsd}">Ask operations</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  dashboardDom.availablePlanList.querySelectorAll("[data-plan-support]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const planName = button.dataset.planName;
+      const planPrice = Number(button.dataset.planPrice || 0);
+      dashboardDom.dashboardSupportInput.value = `Hi Northstar team, I would like help activating the ${planName} plan starting from ${Northstar.formatCurrency(planPrice)}. Please guide me on the next step.`;
+      dashboardDom.dashboardSupportInput.focus();
+      document.querySelector("#support")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+}
+
 function renderEarningsSummary(points) {
   if (!points.length) {
     dashboardDom.earningsLatest.textContent = "-";
@@ -348,6 +403,14 @@ function shortCurrency(value) {
 function formatChartDate(value) {
   const date = new Date(value);
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function escapeAttribute(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 async function handleWithdrawal(event) {
