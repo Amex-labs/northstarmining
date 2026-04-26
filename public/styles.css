@@ -1443,15 +1443,16 @@ input[type="range"] {
   }
 
   .hero h1 {
-    font-size: clamp(2.6rem, 15vw, 4.2rem);
-    line-height: 0.98;
+    font-size: clamp(2.3rem, 11.2vw, 3.25rem);
+    line-height: 1.02;
+    max-width: 9ch;
   }
 
   .hero-body,
   .section-heading p,
   .demo-banner p {
-    font-size: 0.98rem;
-    line-height: 1.68;
+    font-size: 0.95rem;
+    line-height: 1.62;
   }
 
   .hero-risk {
@@ -1589,10 +1590,13 @@ input[type="range"] {
   }
 
   .support-toggle {
-    left: 12px;
+    left: auto;
+    min-width: 156px;
     width: auto;
     display: flex;
     justify-content: center;
+    padding: 12px 18px;
+    font-size: 0.98rem;
   }
 
   .support-panel {
@@ -1637,10 +1641,36 @@ input[type="range"] {
     gap: 12px;
   }
 
+  .brand strong {
+    font-size: 0.96rem;
+  }
+
+  .brand small {
+    font-size: 0.82rem;
+  }
+
   .brand-mark {
     width: 38px;
     height: 38px;
     border-radius: 12px;
+  }
+
+  .eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 9.5vw, 2.7rem);
+    line-height: 1.04;
+    max-width: 8.5ch;
+  }
+
+  .hero-body,
+  .section-heading p,
+  .demo-banner p {
+    font-size: 0.92rem;
+    line-height: 1.56;
   }
 
   .metric-card,
@@ -1685,8 +1715,11 @@ input[type="range"] {
   }
 
   .support-toggle {
-    left: 8px;
+    left: auto;
     right: 8px;
     bottom: 10px;
+    min-width: 148px;
+    padding: 11px 16px;
+    font-size: 0.94rem;
   }
 }
