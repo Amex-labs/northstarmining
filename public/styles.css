@@ -619,6 +619,70 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.welcome-bonus-panel {
+  margin-bottom: 18px;
+  padding: 24px;
+  display: grid;
+  gap: 22px;
+  border: 1px solid rgba(116, 230, 245, 0.2);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(116, 230, 245, 0.12), transparent 38%),
+    linear-gradient(180deg, rgba(10, 20, 35, 0.94), rgba(7, 14, 24, 0.84));
+  box-shadow: var(--shadow);
+}
+
+.bonus-offer-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.bonus-offer-copy h3 {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2.15rem);
+}
+
+.bonus-offer-copy p:last-child,
+.bonus-offer-notes p {
+  color: #d4e0ef;
+  line-height: 1.75;
+}
+
+.bonus-plan-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bonus-plan-item {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 8px;
+}
+
+.bonus-plan-item strong {
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.bonus-plan-item span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.bonus-plan-item p {
+  color: #d4e0ef;
+  line-height: 1.6;
+}
+
+.bonus-offer-notes {
+  display: grid;
+  gap: 10px;
+}
+
 .pricing-advisory,
 .estimate-note {
   border: 1px solid rgba(244, 178, 93, 0.24);
@@ -881,6 +945,16 @@ input[type="range"] {
 .plan-card {
   display: grid;
   gap: 16px;
+}
+
+.plan-action {
+  margin-top: 4px;
+}
+
+.plan-footnote {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
 }
 
 .market-stat {
@@ -1526,6 +1600,15 @@ input[type="range"] {
     padding: 20px;
   }
 
+  .welcome-bonus-panel {
+    padding: 20px;
+    gap: 18px;
+  }
+
+  .bonus-plan-grid {
+    grid-template-columns: 1fr;
+  }
+
   .pricing-advisory {
     padding: 20px;
   }
@@ -1704,6 +1787,14 @@ input[type="range"] {
   .hardware-card img {
     height: 220px;
     padding: 14px;
+  }
+
+  .bonus-plan-item {
+    padding: 16px;
+  }
+
+  .plan-footnote {
+    font-size: 0.88rem;
   }
 
   .topnav a,

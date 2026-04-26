@@ -98,6 +98,9 @@ const PLAN_LIBRARY = [
     deploymentWindowDays: 12,
     warrantyDays: 365,
     image: "/assets/miner-z15-pro.svg",
+    paymentUrl: "https://nowpayments.io/payment/?iid=6162803510",
+    featuredDailyUsd: 55,
+    featuredMonthlyUsd: 1650,
   },
   {
     id: "ini-spark",
@@ -119,6 +122,9 @@ const PLAN_LIBRARY = [
     deploymentWindowDays: 9,
     warrantyDays: 365,
     image: "https://www.inibox.io/wp-content/uploads/2026/02/alk-1.webp",
+    paymentUrl: "https://nowpayments.io/payment/?iid=4780904481",
+    featuredDailyUsd: 68,
+    featuredMonthlyUsd: 2040,
   },
   {
     id: "ini-pro",
@@ -140,6 +146,9 @@ const PLAN_LIBRARY = [
     deploymentWindowDays: 11,
     warrantyDays: 365,
     image: "https://www.inibox.io/wp-content/uploads/2026/02/6.png",
+    paymentUrl: "https://nowpayments.io/payment/?iid=4648307584",
+    featuredDailyUsd: 125,
+    featuredMonthlyUsd: 3750,
   },
   {
     id: "btc-hyd-3u",
@@ -161,6 +170,9 @@ const PLAN_LIBRARY = [
     deploymentWindowDays: 24,
     warrantyDays: 365,
     image: "/assets/miner-s21e-hyd-3u.svg",
+    paymentUrl: "https://nowpayments.io/payment/?iid=4548757627",
+    featuredDailyUsd: 325,
+    featuredMonthlyUsd: 9750,
   },
 ];
 
@@ -648,7 +660,6 @@ async function handleApi(req, res, requestUrl) {
     const enabled = Boolean(body?.enabled);
     user.demoMode = enabled;
     if (enabled && user.activeContracts.length === 0) {
-      user.walletBalance += 500;
       user.pendingBalance += 28;
       user.activeContracts.push(createContract("zec-z15-pro", "ZEC", 0.08, 12, 4));
       user.earningsHistory = buildHistoricalEarnings(user.activeContracts, 30);
@@ -722,7 +733,7 @@ async function handleRegister(store, body, res) {
     password,
     emailVerified: true,
     demoMode,
-    walletBalance: demoMode ? 500 : 0,
+    walletBalance: 500,
     pendingBalance: demoMode ? 24 : 0,
   });
 
@@ -740,6 +751,12 @@ async function handleRegister(store, body, res) {
   user.verificationCode = null;
   const thread = createSupportThread(user);
   user.supportThreadId = thread.id;
+  addNotification(
+    user,
+    "Welcome bonus added",
+    "A $500 welcome balance has been added to your account. It becomes eligible for withdrawal after you activate an ongoing mining subscription on the platform.",
+    "success"
+  );
   addNotification(user, "Account active", "Your account is ready. Sign in, review your dashboard, and enable 2FA any time from the security panel.", "success");
 
   store.users.push(user);

@@ -20,6 +20,7 @@ const dom = {
   marketTicker: document.querySelector("#marketTicker"),
   roadmapGrid: document.querySelector("#roadmapGrid"),
   trustPoints: document.querySelector("#trustPoints"),
+  bonusOffer: document.querySelector("#bonusOffer"),
   plansGrid: document.querySelector("#plansGrid"),
   marketGrid: document.querySelector("#marketGrid"),
   hardwareGrid: document.querySelector("#hardwareGrid"),
@@ -240,6 +241,7 @@ function renderOverview() {
     .join("");
 
   dom.trustPoints.innerHTML = trustPoints.map((item) => `<div>${item}</div>`).join("");
+  dom.bonusOffer.innerHTML = renderBonusOffer(plans);
   dom.plansGrid.innerHTML = plans.map(renderPlanCard).join("");
   dom.marketGrid.innerHTML = Object.values(market).map(renderMarketCard).join("");
   dom.hardwareGrid.innerHTML = hardware.map(renderHardwareCard).join("");
@@ -289,6 +291,10 @@ function renderOverview() {
 
 function renderPlanCard(plan) {
   const estimate = plan.estimates[0];
+  const actionLabel = plan.paymentUrl ? "Pay now" : "Review estimate";
+  const actionMarkup = plan.paymentUrl
+    ? `<a class="primary-button wide plan-action" href="${plan.paymentUrl}" target="_blank" rel="noreferrer">Pay now</a>`
+    : `<button class="secondary-button wide plan-action" type="button" data-plan-pick="${plan.id}">Review estimate</button>`;
   return `
     <article class="plan-card">
       <img src="${plan.image}" alt="${plan.name} mining hardware photo" loading="lazy" />
@@ -308,8 +314,40 @@ function renderPlanCard(plan) {
         <div class="meta-row"><span>Electricity assumption</span><strong>$0.08/kWh</strong></div>
         <div class="meta-row"><span>Deployment window</span><strong>${plan.deploymentWindowDays} business days</strong></div>
       </div>
-      <button class="secondary-button wide" type="button" data-plan-pick="${plan.id}">View earnings assumptions</button>
+      ${actionMarkup}
+      <p class="plan-footnote">${actionLabel === "Pay now" ? "Complete payment securely through our partner checkout and keep your support desk available for confirmation." : "Open the calculator to compare how live market inputs can affect this machine."}</p>
     </article>
+  `;
+}
+
+function renderBonusOffer(plans) {
+  const items = plans
+    .map(
+      (plan) => `
+        <article class="bonus-plan-item">
+          <strong>${plan.name}</strong>
+          <span>${Northstar.formatCurrency(plan.startingPriceUsd)} plan</span>
+          <p>Up to ${Northstar.formatCurrency(plan.featuredDailyUsd)} daily (${Northstar.formatCurrency(plan.featuredMonthlyUsd)}/month)</p>
+        </article>
+      `
+    )
+    .join("");
+
+  return `
+    <div class="bonus-offer-copy">
+      <p class="eyebrow">Welcome bonus</p>
+      <h3>Open your account with a $500 welcome balance and pick the plan that fits your pace.</h3>
+      <p>
+        With Northstar Mining, new registrations receive a $500 welcome bonus, and active users can earn daily based on their selected plan.
+      </p>
+    </div>
+    <div class="bonus-plan-grid">
+      ${items}
+    </div>
+    <div class="bonus-offer-notes">
+      <p>Designed as a side income stream, not a full-time job replacement. Start at your own pace and scale as you get comfortable.</p>
+      <p>The $500 welcome bonus is available for withdrawal once you are an active subscriber on the platform.</p>
+    </div>
   `;
 }
 
