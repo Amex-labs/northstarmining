@@ -15,23 +15,32 @@
   </head>
   <body class="theme-dark">
     <div class="site-shell">
-      <header class="topbar">
-        <a class="brand" href="/">
-          <span class="brand-mark">N</span>
-          <span>
-            <strong>Northstar Mining</strong>
-            <small>Transparent infrastructure</small>
-          </span>
-        </a>
-        <nav class="topnav">
-          <a href="#plans">Plans</a>
-          <a href="#calculator">Calculator</a>
-          <a href="#transparency">Transparency</a>
-          <a href="#faq">FAQ</a>
-        </nav>
-        <div class="topbar-actions">
-          <button class="ghost-button" data-open-auth="login">Login</button>
-          <button class="primary-button" data-open-auth="register">Start Mining</button>
+      <header class="topbar" id="siteTopbar">
+        <div class="topbar-primary">
+          <a class="brand" href="/">
+            <span class="brand-mark">N</span>
+            <span>
+              <strong>Northstar Mining</strong>
+              <small>Transparent infrastructure</small>
+            </span>
+          </a>
+          <button class="menu-toggle" id="menuToggle" type="button" aria-controls="topbarPanel" aria-expanded="false" aria-label="Open navigation">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+        <div class="topbar-panel" id="topbarPanel">
+          <nav class="topnav">
+            <a href="#plans">Plans</a>
+            <a href="#calculator">Calculator</a>
+            <a href="#transparency">Transparency</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+          <div class="topbar-actions">
+            <button class="ghost-button" data-open-auth="login">Login</button>
+            <button class="primary-button" data-open-auth="register">Start Mining</button>
+          </div>
         </div>
       </header>
 

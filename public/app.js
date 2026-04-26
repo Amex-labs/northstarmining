@@ -11,6 +11,9 @@ const state = {
 };
 
 const dom = {
+  siteTopbar: document.querySelector("#siteTopbar"),
+  topbarPanel: document.querySelector("#topbarPanel"),
+  menuToggle: document.querySelector("#menuToggle"),
   heroHashrate: document.querySelector("#heroHashrate"),
   heroMiners: document.querySelector("#heroMiners"),
   heroDaily: document.querySelector("#heroDaily"),
@@ -57,6 +60,7 @@ init();
 
 async function init() {
   bindEvents();
+  syncResponsiveChrome();
   await loadOverview();
   await hydrateSession();
   connectSocket();
@@ -65,14 +69,22 @@ async function init() {
 
 function bindEvents() {
   document.querySelectorAll("[data-open-auth]").forEach((button) => {
-    button.addEventListener("click", () => openAuth(button.dataset.openAuth));
+    button.addEventListener("click", () => {
+      closeMobileMenu();
+      openAuth(button.dataset.openAuth);
+    });
   });
 
   document.querySelectorAll("[data-auth-tab]").forEach((button) => {
     button.addEventListener("click", () => setAuthTab(button.dataset.authTab));
   });
 
+  document.querySelectorAll(".topnav a").forEach((link) => {
+    link.addEventListener("click", () => closeMobileMenu());
+  });
+
   dom.authClose.addEventListener("click", closeAuth);
+  dom.menuToggle?.addEventListener("click", () => toggleMobileMenu());
   dom.supportToggle.addEventListener("click", () => {
     const hidden = dom.supportPanel.getAttribute("aria-hidden") === "true";
     dom.supportPanel.setAttribute("aria-hidden", String(!hidden));
@@ -100,9 +112,27 @@ function bindEvents() {
   });
   dom.coinSelect.addEventListener("change", updateEstimate);
   window.addEventListener("resize", () => {
+    syncResponsiveChrome();
     if (state.overview) {
       drawHeroChart();
     }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMobileMenu();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!dom.siteTopbar?.classList.contains("menu-open")) {
+      return;
+    }
+    if (window.innerWidth > 720) {
+      return;
+    }
+    if (dom.siteTopbar.contains(event.target)) {
+      return;
+    }
+    closeMobileMenu();
   });
 }
 
@@ -136,6 +166,26 @@ function syncPasswordToggle(button) {
   }
   if (visibleIcon) {
     visibleIcon.hidden = !isVisible;
+  }
+}
+
+function toggleMobileMenu(forceOpen) {
+  if (!dom.siteTopbar || !dom.menuToggle) {
+    return;
+  }
+  const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !dom.siteTopbar.classList.contains("menu-open");
+  dom.siteTopbar.classList.toggle("menu-open", shouldOpen);
+  dom.menuToggle.setAttribute("aria-expanded", String(shouldOpen));
+  dom.menuToggle.setAttribute("aria-label", shouldOpen ? "Close navigation" : "Open navigation");
+}
+
+function closeMobileMenu() {
+  toggleMobileMenu(false);
+}
+
+function syncResponsiveChrome() {
+  if (window.innerWidth > 720) {
+    closeMobileMenu();
   }
 }
 
