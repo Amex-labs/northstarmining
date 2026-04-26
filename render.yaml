@@ -1,3 +1,7 @@
+databases:
+  - name: northstarmining-db
+    plan: free
+
 services:
   - type: web
     name: northstarmining
@@ -11,4 +15,6 @@ services:
       - key: TOKEN_SECRET
         generateValue: true
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: northstarmining-db
+          property: connectionString

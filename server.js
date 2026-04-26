@@ -310,6 +310,7 @@ const MIME_TYPES = {
 const wsClients = new Set();
 let storeCache = null;
 let pgPool = null;
+let persistChain = Promise.resolve();
 
 const server = http.createServer((req, res) => {
   Promise.resolve(routeRequest(req, res)).catch((error) => {
@@ -508,6 +509,10 @@ async function handleApi(req, res, requestUrl) {
       status: "ok",
       service: BRAND.legal,
       time: new Date().toISOString(),
+      storage: {
+        mode: DATABASE_URL ? "postgres" : "file",
+        durable: DATABASE_URL ? true : process.env.RENDER !== "true",
+      },
     });
     return;
   }
@@ -531,17 +536,17 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (req.method === "POST" && requestUrl.pathname === "/api/auth/register") {
-    handleRegister(store, body, res);
+    await handleRegister(store, body, res);
     return;
   }
 
   if (req.method === "POST" && requestUrl.pathname === "/api/auth/login") {
-    handleLogin(store, body, res);
+    await handleLogin(store, body, res);
     return;
   }
 
   if (req.method === "POST" && requestUrl.pathname === "/api/auth/verify-email") {
-    handleVerifyEmail(store, body, res);
+    await handleVerifyEmail(store, body, res);
     return;
   }
 
@@ -561,7 +566,7 @@ async function handleApi(req, res, requestUrl) {
     }
     const secret = generateBase32Secret(20);
     user.twoFactor.pendingSecret = secret;
-    writeStore(store);
+    await writeStore(store);
     sendJson(res, 200, {
       secret,
       issuer: BRAND.name,
@@ -590,7 +595,7 @@ async function handleApi(req, res, requestUrl) {
     user.twoFactor.secret = secret;
     user.twoFactor.pendingSecret = null;
     addNotification(user, "Two-factor enabled", "Authenticator verification is now required during login.", "success");
-    writeStore(store);
+    await writeStore(store);
     sendJson(res, 200, { success: true });
     return;
   }
@@ -612,7 +617,7 @@ async function handleApi(req, res, requestUrl) {
     user.twoFactor.secret = null;
     user.twoFactor.pendingSecret = null;
     addNotification(user, "Two-factor disabled", "Your account now uses password-only authentication.", "warning");
-    writeStore(store);
+    await writeStore(store);
     sendJson(res, 200, { success: true });
     return;
   }
@@ -631,7 +636,7 @@ async function handleApi(req, res, requestUrl) {
     if (!user) {
       return;
     }
-    handleWithdrawal(store, user, body, res);
+    await handleWithdrawal(store, user, body, res);
     return;
   }
 
@@ -649,7 +654,7 @@ async function handleApi(req, res, requestUrl) {
       user.earningsHistory = buildHistoricalEarnings(user.activeContracts, 30);
     }
     addNotification(user, enabled ? "Guided onboarding enabled" : "Guided onboarding paused", enabled ? "A guided portfolio walkthrough is available in your dashboard." : "Guided onboarding is paused, but your saved history remains visible.", "info");
-    writeStore(store);
+    await writeStore(store);
     sendJson(res, 200, { success: true, demoMode: user.demoMode });
     return;
   }
@@ -659,7 +664,7 @@ async function handleApi(req, res, requestUrl) {
     if (!user) {
       return;
     }
-    handleTicket(store, user, body, res);
+    await handleTicket(store, user, body, res);
     return;
   }
 
@@ -677,7 +682,7 @@ async function handleApi(req, res, requestUrl) {
     if (!admin) {
       return;
     }
-    handleAdjustment(store, admin, body, res);
+    await handleAdjustment(store, admin, body, res);
     return;
   }
 
@@ -686,14 +691,14 @@ async function handleApi(req, res, requestUrl) {
     if (!admin) {
       return;
     }
-    handleBroadcast(store, admin, body, res);
+    await handleBroadcast(store, admin, body, res);
     return;
   }
 
   sendJson(res, 404, { error: "Route not found." });
 }
 
-function handleRegister(store, body, res) {
+async function handleRegister(store, body, res) {
   const fullName = String(body?.fullName || "").trim();
   const email = String(body?.email || "").trim().toLowerCase();
   const password = String(body?.password || "");
@@ -739,7 +744,7 @@ function handleRegister(store, body, res) {
 
   store.users.push(user);
   store.supportThreads.push(thread);
-  writeStore(store);
+  await writeStore(store);
 
   const token = signToken({
     sub: user.id,
@@ -756,7 +761,7 @@ function handleRegister(store, body, res) {
   });
 }
 
-function handleLogin(store, body, res) {
+async function handleLogin(store, body, res) {
   const email = String(body?.email || "").trim().toLowerCase();
   const password = String(body?.password || "");
   const code = String(body?.code || "");
@@ -784,7 +789,7 @@ function handleLogin(store, body, res) {
   }
 
   user.lastLoginAt = new Date().toISOString();
-  writeStore(store);
+  await writeStore(store);
 
   const token = signToken({
     sub: user.id,
@@ -799,7 +804,7 @@ function handleLogin(store, body, res) {
   });
 }
 
-function handleVerifyEmail(store, body, res) {
+async function handleVerifyEmail(store, body, res) {
   const email = String(body?.email || "").trim().toLowerCase();
   const code = String(body?.code || "").trim();
   const user = store.users.find((entry) => entry.email === email);
@@ -817,12 +822,12 @@ function handleVerifyEmail(store, body, res) {
   user.emailVerified = true;
   user.verificationCode = null;
   addNotification(user, "Email verified", "Your account can now access the live dashboard and support desk.", "success");
-  writeStore(store);
+  await writeStore(store);
 
   sendJson(res, 200, { success: true });
 }
 
-function handleWithdrawal(store, user, body, res) {
+async function handleWithdrawal(store, user, body, res) {
   const amountUsd = clampNumber(body?.amountUsd, 50, 100000, 0);
   const asset = String(body?.asset || "").trim().toUpperCase();
   const network = String(body?.network || "").trim();
@@ -888,7 +893,7 @@ function handleWithdrawal(store, user, body, res) {
     detail: `${user.email} requested ${amountUsd.toFixed(2)} USD in ${asset} on ${network} to ${address}.`,
     createdAt,
   });
-  writeStore(store);
+  await writeStore(store);
   writeEmailPreview(
     user.email,
     "Withdrawal request received",
@@ -907,7 +912,7 @@ function handleWithdrawal(store, user, body, res) {
   });
 }
 
-function handleTicket(store, user, body, res) {
+async function handleTicket(store, user, body, res) {
   const subject = String(body?.subject || "").trim();
   const message = String(body?.message || "").trim();
   const thread = getOrCreateThread(store, user);
@@ -927,12 +932,12 @@ function handleTicket(store, user, body, res) {
   thread.messages.push(createSupportMessage("user", user.fullName, message));
   thread.updatedAt = new Date().toISOString();
   addNotification(user, "Support ticket received", "Our operations team will respond in the ticket feed or live chat.", "info");
-  writeStore(store);
+  await writeStore(store);
   broadcastThreadUpdate(store, thread.id);
   sendJson(res, 201, { success: true, message: "Support ticket submitted successfully. Our operations desk will follow up shortly." });
 }
 
-function handleAdjustment(store, admin, body, res) {
+async function handleAdjustment(store, admin, body, res) {
   const userId = String(body?.userId || "");
   const amountUsd = Number(body?.amountUsd || 0);
   const note = String(body?.note || "").trim();
@@ -960,7 +965,7 @@ function handleAdjustment(store, admin, body, res) {
     detail: `${admin.email} adjusted ${user.email} by ${amountUsd.toFixed(2)} USD. Note: ${note}`,
     createdAt: new Date().toISOString(),
   });
-  writeStore(store);
+  await writeStore(store);
   broadcastThreadUpdate(store, thread.id);
   sendJson(res, 200, {
     success: true,
@@ -968,7 +973,7 @@ function handleAdjustment(store, admin, body, res) {
   });
 }
 
-function handleBroadcast(store, admin, body, res) {
+async function handleBroadcast(store, admin, body, res) {
   const title = String(body?.title || "").trim();
   const message = String(body?.message || "").trim();
 
@@ -999,7 +1004,7 @@ function handleBroadcast(store, admin, body, res) {
     createdAt: new Date().toISOString(),
   });
 
-  writeStore(store);
+  await writeStore(store);
   broadcastMarketSnapshot();
   sendJson(res, 200, { success: true, message: "Announcement published successfully." });
 }
@@ -1381,13 +1386,15 @@ function writeStore(store) {
   storeCache = cloneStore(store);
 
   if (DATABASE_URL) {
-    persistStoreToDatabase(storeCache).catch((error) => {
-      console.error("Failed to persist store to Postgres", error);
-    });
-    return;
+    const snapshot = cloneStore(storeCache);
+    persistChain = persistChain
+      .catch(() => {})
+      .then(() => persistStoreToDatabase(snapshot));
+    return persistChain;
   }
 
   fs.writeFileSync(STORE_PATH, JSON.stringify(storeCache, null, 2));
+  return Promise.resolve();
 }
 
 async function ensureDatabaseStore() {
@@ -1794,7 +1801,11 @@ function handleUpgrade(req, socket) {
     client.buffer = Buffer.concat([client.buffer, chunk]);
     const parsed = readFrames(client.buffer);
     client.buffer = parsed.remaining;
-    parsed.messages.forEach((message) => handleWsMessage(client, message));
+    parsed.messages.forEach((message) => {
+      handleWsMessage(client, message).catch((error) => {
+        console.error("WebSocket message handling failed", error);
+      });
+    });
   });
 
   socket.on("end", () => wsClients.delete(client));
@@ -1802,7 +1813,7 @@ function handleUpgrade(req, socket) {
   socket.on("error", () => wsClients.delete(client));
 }
 
-function handleWsMessage(client, message) {
+async function handleWsMessage(client, message) {
   if (message.type === "ping") {
     sendWs(client, { type: "pong", time: new Date().toISOString() });
     return;
@@ -1820,7 +1831,7 @@ function handleWsMessage(client, message) {
       if (targetThread && String(message.body || "").trim()) {
         targetThread.messages.push(createSupportMessage("admin", user.fullName, String(message.body || "").trim()));
         targetThread.updatedAt = new Date().toISOString();
-        writeStore(store);
+        await writeStore(store);
         broadcastThreadUpdate(store, message.threadId);
       }
       return;
@@ -1833,7 +1844,7 @@ function handleWsMessage(client, message) {
     }
     thread.messages.push(createSupportMessage("user", user.fullName, body));
     thread.updatedAt = new Date().toISOString();
-    writeStore(store);
+    await writeStore(store);
     broadcastThreadUpdate(store, thread.id);
   }
 }

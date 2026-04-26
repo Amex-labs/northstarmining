@@ -39,7 +39,7 @@ Then open the local app in your browser after the server starts.
 
 ### Render
 
-This repo includes a [`render.yaml`](./render.yaml) blueprint for a simple web-service deploy.
+This repo includes a [`render.yaml`](./render.yaml) blueprint that provisions both the web service and a Render Postgres database for persistent account storage.
 
 Manual settings if you create the service in the dashboard:
 
@@ -50,6 +50,17 @@ Manual settings if you create the service in the dashboard:
 - Health check path: `/api/health`
 - Environment variable: `TOKEN_SECRET` = any long random secret
 - Environment variable: `DATABASE_URL` = your Render Postgres internal connection string
+
+For an existing manual Render deploy:
+
+1. Create a Render Postgres database in the same region as the web service.
+2. Copy the database's internal connection string.
+3. Add it to the web service as `DATABASE_URL`.
+4. Redeploy the web service once.
+
+After that, newly registered accounts, balances, withdrawals, and support history persist through restarts and spin-downs.
+
+Important: Render's Free Postgres tier is suitable for testing, but not for long-term production retention. For a live service where registrations should remain valid indefinitely, use a paid Render Postgres plan such as `basic-256mb` or higher.
 
 The app reads `PORT` from the environment, so it works with Render's assigned port automatically.
 
