@@ -11,25 +11,34 @@
   </head>
   <body class="theme-dark dashboard-page">
     <div class="dashboard-shell">
-      <aside class="dashboard-sidebar">
-        <a class="brand" href="/">
-          <span class="brand-mark">N</span>
-          <span>
-            <strong>Northstar Mining</strong>
-            <small>User dashboard</small>
-          </span>
-        </a>
-        <nav class="sidebar-nav">
-          <a href="#summary">Overview</a>
-          <a href="#plans">Plans</a>
-          <a href="#contracts">Contracts</a>
-          <a href="#withdrawals">Withdrawals</a>
-          <a href="#support">Support</a>
-          <a href="#security">Security</a>
-        </nav>
-        <div class="sidebar-foot">
-          <p id="userIdentity">Checking session...</p>
-          <button class="ghost-button wide" id="logoutButton" type="button">Logout</button>
+      <aside class="dashboard-sidebar" id="dashboardSidebar">
+        <div class="dashboard-sidebar-top">
+          <a class="brand" href="/">
+            <span class="brand-mark">N</span>
+            <span>
+              <strong>Northstar Mining</strong>
+              <small>User dashboard</small>
+            </span>
+          </a>
+          <button class="menu-toggle dashboard-menu-toggle" id="dashboardMenuToggle" type="button" aria-controls="dashboardSidebarPanel" aria-expanded="false" aria-label="Open dashboard navigation">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+        <div class="dashboard-sidebar-panel" id="dashboardSidebarPanel">
+          <nav class="sidebar-nav">
+            <a href="#summary">Overview</a>
+            <a href="#plans">Plans</a>
+            <a href="#contracts">Contracts</a>
+            <a href="#withdrawals">Withdrawals</a>
+            <a href="#support">Support</a>
+            <a href="#security">Security</a>
+          </nav>
+          <div class="sidebar-foot">
+            <p id="userIdentity">Checking session...</p>
+            <button class="ghost-button wide" id="logoutButton" type="button">Logout</button>
+          </div>
         </div>
       </aside>
 

@@ -1217,6 +1217,34 @@ input[type="range"] {
   gap: 26px;
 }
 
+.dashboard-sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-sidebar-panel {
+  display: grid;
+  gap: 26px;
+}
+
+.dashboard-menu-toggle {
+  flex: 0 0 auto;
+}
+
+.dashboard-sidebar.menu-open .dashboard-menu-toggle span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.dashboard-sidebar.menu-open .dashboard-menu-toggle span:nth-child(2) {
+  opacity: 0;
+}
+
+.dashboard-sidebar.menu-open .dashboard-menu-toggle span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
 .sidebar-nav {
   display: grid;
   gap: 12px;
@@ -1445,39 +1473,45 @@ input[type="range"] {
     top: 0;
     z-index: 25;
     height: auto;
-    padding: 18px 20px;
-    gap: 18px;
+    padding: 16px 18px;
+    gap: 14px;
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(5, 11, 20, 0.96);
     backdrop-filter: blur(16px);
   }
 
+  .dashboard-menu-toggle {
+    display: inline-flex;
+  }
+
+  .dashboard-sidebar-panel {
+    display: none;
+    gap: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .dashboard-sidebar.menu-open .dashboard-sidebar-panel {
+    display: grid;
+  }
+
   .sidebar-nav {
-    display: flex;
-    flex-wrap: nowrap;
+    display: grid;
     gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    margin: 0 -2px;
-    scrollbar-width: none;
   }
 
   .sidebar-nav a {
-    white-space: nowrap;
+    white-space: normal;
+    width: 100%;
     padding: 10px 14px;
-    border-radius: 999px;
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
   }
 
   .sidebar-foot {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-  }
-
-  .sidebar-foot .ghost-button {
-    width: auto;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1714,8 +1748,7 @@ input[type="range"] {
   }
 
   .dashboard-sidebar {
-    padding: 16px 12px;
-    gap: 14px;
+    padding: 14px 12px;
   }
 
   .dashboard-header {
@@ -1723,8 +1756,16 @@ input[type="range"] {
   }
 
   .dashboard-header h1 {
-    font-size: clamp(2.2rem, 13vw, 3.4rem);
-    line-height: 1;
+    font-size: clamp(1.9rem, 11vw, 2.8rem);
+    line-height: 0.98;
+    max-width: 8.5ch;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
   }
 
   .sidebar-foot {
@@ -1874,6 +1915,14 @@ input[type="range"] {
   .sidebar-nav a {
     padding: 9px 12px;
     font-size: 0.92rem;
+  }
+
+  .dashboard-sidebar .brand strong {
+    font-size: 0.92rem;
+  }
+
+  .dashboard-sidebar .brand small {
+    font-size: 0.8rem;
   }
 
   .modal-shell {

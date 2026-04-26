@@ -5,6 +5,9 @@ const dashboardState = {
 };
 
 const dashboardDom = {
+  dashboardSidebar: document.querySelector("#dashboardSidebar"),
+  dashboardSidebarPanel: document.querySelector("#dashboardSidebarPanel"),
+  dashboardMenuToggle: document.querySelector("#dashboardMenuToggle"),
   userIdentity: document.querySelector("#userIdentity"),
   logoutButton: document.querySelector("#logoutButton"),
   demoModeBadge: document.querySelector("#demoModeBadge"),
@@ -55,9 +58,14 @@ async function bootstrap() {
 }
 
 function bindDashboardEvents() {
+  dashboardDom.dashboardMenuToggle?.addEventListener("click", () => toggleDashboardMenu());
   dashboardDom.logoutButton.addEventListener("click", () => {
     Northstar.clearToken();
     window.location.href = "/";
+  });
+
+  document.querySelectorAll(".sidebar-nav a").forEach((link) => {
+    link.addEventListener("click", () => closeDashboardMenu());
   });
 
   dashboardDom.withdrawForm.addEventListener("submit", handleWithdrawal);
@@ -68,10 +76,49 @@ function bindDashboardEvents() {
   dashboardDom.disable2faButton.addEventListener("click", disableTwoFactor);
   dashboardDom.withdrawAsset.addEventListener("change", populateWithdrawalNetworks);
   window.addEventListener("resize", () => {
+    syncDashboardChrome();
     if (dashboardState.summary?.earningsHistory?.length) {
       drawEarningsChart(dashboardState.summary.earningsHistory);
     }
   });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeDashboardMenu();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!dashboardDom.dashboardSidebar?.classList.contains("menu-open")) {
+      return;
+    }
+    if (window.innerWidth > 1080) {
+      return;
+    }
+    if (dashboardDom.dashboardSidebar.contains(event.target)) {
+      return;
+    }
+    closeDashboardMenu();
+  });
+  syncDashboardChrome();
+}
+
+function toggleDashboardMenu(forceOpen) {
+  if (!dashboardDom.dashboardSidebar || !dashboardDom.dashboardMenuToggle) {
+    return;
+  }
+  const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !dashboardDom.dashboardSidebar.classList.contains("menu-open");
+  dashboardDom.dashboardSidebar.classList.toggle("menu-open", shouldOpen);
+  dashboardDom.dashboardMenuToggle.setAttribute("aria-expanded", String(shouldOpen));
+  dashboardDom.dashboardMenuToggle.setAttribute("aria-label", shouldOpen ? "Close dashboard navigation" : "Open dashboard navigation");
+}
+
+function closeDashboardMenu() {
+  toggleDashboardMenu(false);
+}
+
+function syncDashboardChrome() {
+  if (window.innerWidth > 1080) {
+    closeDashboardMenu();
+  }
 }
 
 async function refreshDashboard() {
