@@ -325,6 +325,7 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".jpg": "image/jpeg",
+  ".mp4": "video/mp4",
   ".ico": "image/x-icon",
 };
 

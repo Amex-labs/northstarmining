@@ -1329,6 +1329,37 @@ input[type="range"] {
   grid-template-columns: 1fr;
 }
 
+.video-proof-panel {
+  gap: 18px;
+}
+
+.video-proof-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  border: 1px solid rgba(116, 230, 245, 0.14);
+  background:
+    radial-gradient(circle at top, rgba(116, 230, 245, 0.12), transparent 42%),
+    linear-gradient(180deg, rgba(4, 10, 18, 0.98), rgba(7, 15, 26, 0.96));
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.34);
+}
+
+.video-proof-player {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border: 0;
+  background: rgba(2, 7, 14, 0.96);
+}
+
+.video-proof-caption {
+  margin: 0;
+  max-width: 64ch;
+  color: #cfd9e7;
+  line-height: 1.7;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -1907,6 +1938,10 @@ input[type="range"] {
   .dashboard-plan-card img {
     height: 200px;
     padding: 14px;
+  }
+
+  .video-proof-frame {
+    border-radius: 22px;
   }
 
   .bonus-plan-item {
