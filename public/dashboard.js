@@ -28,7 +28,6 @@ const dashboardDom = {
   withdrawForm: document.querySelector("#withdrawForm"),
   withdrawAsset: document.querySelector("#withdrawAsset"),
   withdrawNetwork: document.querySelector("#withdrawNetwork"),
-  withdrawalHint: document.querySelector("#withdrawalHint"),
   withdrawalList: document.querySelector("#withdrawalList"),
   withdrawalStatus: document.querySelector("#withdrawalStatus"),
   securityState: document.querySelector("#securityState"),
@@ -75,10 +74,7 @@ function bindDashboardEvents() {
   dashboardDom.setup2faButton.addEventListener("click", startTwoFactorSetup);
   dashboardDom.enable2faButton.addEventListener("click", enableTwoFactor);
   dashboardDom.disable2faButton.addEventListener("click", disableTwoFactor);
-  dashboardDom.withdrawAsset.addEventListener("change", () => {
-    populateWithdrawalNetworks();
-    updateWithdrawalHint();
-  });
+  dashboardDom.withdrawAsset.addEventListener("change", populateWithdrawalNetworks);
   window.addEventListener("resize", () => {
     syncDashboardChrome();
     if (dashboardState.summary?.earningsHistory?.length) {
@@ -553,7 +549,6 @@ function populateWithdrawalAssets() {
     .join("");
   dashboardDom.withdrawAsset.value = selectedAsset;
   populateWithdrawalNetworks();
-  updateWithdrawalHint();
 }
 
 function populateWithdrawalNetworks() {
@@ -564,22 +559,6 @@ function populateWithdrawalNetworks() {
     return;
   }
   dashboardDom.withdrawNetwork.innerHTML = config.networks.map((network) => `<option value="${network}">${network}</option>`).join("");
-}
-
-function updateWithdrawalHint() {
-  if (!dashboardDom.withdrawalHint) {
-    return;
-  }
-
-  const asset = dashboardDom.withdrawAsset.value;
-  if (asset === "USDT") {
-    dashboardDom.withdrawalHint.textContent =
-      "USDT is typically the quickest settlement option for clients who prefer a smoother payout route, while all withdrawals still complete the usual account and network review.";
-    return;
-  }
-
-  dashboardDom.withdrawalHint.textContent =
-    "Every payout request is reviewed with care so network selection, wallet ownership, and release timing can be confirmed clearly before funds are issued.";
 }
 
 function handleSupportReply(event) {

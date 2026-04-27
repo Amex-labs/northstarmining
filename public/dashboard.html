@@ -132,9 +132,9 @@
             <form class="stack-form" id="withdrawForm">
               <label>Amount (USD) <input name="amountUsd" type="number" min="50" step="10" required /></label>
               <label>Crypto asset <select name="asset" id="withdrawAsset" required></select></label>
+              <p class="muted-copy" id="withdrawalHint">USDT withdrawal process is the fastest payout method.</p>
               <label>Network <select name="network" id="withdrawNetwork" required></select></label>
               <label>Wallet address <input name="address" required /></label>
-              <p class="muted-copy" id="withdrawalHint">USDT is typically the quickest settlement option for clients who prefer a smoother payout route, while all withdrawals still complete the usual account and network review.</p>
               <button class="primary-button wide" type="submit">Submit withdrawal</button>
             </form>
             <p class="form-status" id="withdrawalStatus" role="status" aria-live="polite"></p>
