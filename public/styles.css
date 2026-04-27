@@ -814,6 +814,12 @@ h3 {
   gap: 14px;
 }
 
+.auth-action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 label {
   display: grid;
   gap: 8px;
@@ -1816,7 +1822,7 @@ input[type="range"] {
 
   .auth-tabs {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
   }
 
@@ -1938,6 +1944,10 @@ input[type="range"] {
     max-height: calc(var(--viewport-height) - 12px);
     padding: 18px;
     gap: 16px;
+  }
+
+  .auth-action-row {
+    grid-template-columns: 1fr;
   }
 
   .support-panel {

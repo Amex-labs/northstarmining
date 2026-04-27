@@ -50,6 +50,12 @@ Manual settings if you create the service in the dashboard:
 - Health check path: `/api/health`
 - Environment variable: `TOKEN_SECRET` = any long random secret
 - Environment variable: `DATABASE_URL` = your Render Postgres internal connection string
+- Environment variable: `SMTP_HOST` = `smtp.gmail.com`
+- Environment variable: `SMTP_PORT` = `465`
+- Environment variable: `SMTP_SECURE` = `true`
+- Environment variable: `SMTP_USER` = your Gmail sender address
+- Environment variable: `SMTP_PASS` = a Gmail App Password for that sender address
+- Environment variable: `EMAIL_FROM` = `Northstar Mining <your-gmail-address>`
 
 For an existing manual Render deploy:
 
@@ -59,6 +65,8 @@ For an existing manual Render deploy:
 4. Redeploy the web service once.
 
 After that, newly registered accounts, balances, withdrawals, and support history persist through restarts and spin-downs.
+
+To enable live signup verification emails on Render, create a Gmail App Password for the sender mailbox and add the SMTP variables above to the web service environment. When SMTP is not configured, local development falls back to writing preview emails into `outbox/email`, but the live Render service is expected to use SMTP for real deliveries.
 
 Important: Render's Free Postgres tier is suitable for testing, but not for long-term production retention. For a live service where registrations should remain valid indefinitely, use a paid Render Postgres plan such as `basic-256mb` or higher.
 

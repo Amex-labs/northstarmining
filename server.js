@@ -14,6 +14,15 @@ const STORE_PATH = path.join(DATA_DIR, "store.json");
 const STORE_KEY = "northstar-primary-store";
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const TOKEN_SECRET = process.env.TOKEN_SECRET || "northstar-demo-secret";
+const SMTP_HOST = String(process.env.SMTP_HOST || "smtp.gmail.com").trim();
+const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
+const SMTP_SECURE = String(process.env.SMTP_SECURE || "").trim()
+  ? !["false", "0", "no"].includes(String(process.env.SMTP_SECURE || "").trim().toLowerCase())
+  : SMTP_PORT === 465;
+const SMTP_USER = String(process.env.SMTP_USER || "").trim();
+const SMTP_PASS = String(process.env.SMTP_PASS || "").trim();
+const EMAIL_FROM = String(process.env.EMAIL_FROM || "").trim() || (SMTP_USER ? `Northstar Mining <${SMTP_USER}>` : "Northstar Mining");
+const VERIFICATION_CODE_TTL_MINUTES = clampNumber(process.env.VERIFICATION_CODE_TTL_MINUTES, 5, 60, 15);
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const YIELD_OPTIMIZATION_PCT = 5;
@@ -323,6 +332,7 @@ const wsClients = new Set();
 let storeCache = null;
 let pgPool = null;
 let persistChain = Promise.resolve();
+let mailTransport = null;
 
 const server = http.createServer((req, res) => {
   Promise.resolve(routeRequest(req, res)).catch((error) => {
@@ -483,6 +493,7 @@ function createSeedUser({ id, role, fullName, email, password, emailVerified, de
     passwordHash: hashPassword(password),
     emailVerified,
     verificationCode: null,
+    verificationCodeExpiresAt: null,
     demoMode,
     walletBalance,
     pendingBalance,
@@ -559,6 +570,11 @@ async function handleApi(req, res, requestUrl) {
 
   if (req.method === "POST" && requestUrl.pathname === "/api/auth/verify-email") {
     await handleVerifyEmail(store, body, res);
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/auth/resend-verification") {
+    await handleResendVerification(store, body, res);
     return;
   }
 
@@ -709,18 +725,51 @@ async function handleApi(req, res, requestUrl) {
   sendJson(res, 404, { error: "Route not found." });
 }
 
+function issueSessionToken(user) {
+  return signToken({
+    sub: user.id,
+    role: user.role,
+    email: user.email,
+    exp: Date.now() + 7 * 86400000,
+  });
+}
+
+function setVerificationCode(user) {
+  user.verificationCode = generateCode();
+  user.verificationCodeExpiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MINUTES * 60000).toISOString();
+}
+
 async function handleRegister(store, body, res) {
   const fullName = String(body?.fullName || "").trim();
   const email = String(body?.email || "").trim().toLowerCase();
   const password = String(body?.password || "");
   const demoMode = Boolean(body?.demoMode);
+  const existingUser = store.users.find((user) => user.email === email);
 
   if (!fullName || !email || !password) {
     sendJson(res, 400, { error: "Name, email, and password are required." });
     return;
   }
 
-  if (store.users.some((user) => user.email === email)) {
+  if (!isValidEmail(email)) {
+    sendJson(res, 400, { error: "Enter a valid email address to continue." });
+    return;
+  }
+
+  if (password.length < 8) {
+    sendJson(res, 400, { error: "Use a password with at least 8 characters." });
+    return;
+  }
+
+  if (existingUser) {
+    if (!existingUser.emailVerified) {
+      sendJson(res, 409, {
+        error: "An account with that email is already waiting for verification.",
+        requiresVerification: true,
+        email,
+      });
+      return;
+    }
     sendJson(res, 400, { error: "An account with that email already exists." });
     return;
   }
@@ -731,7 +780,7 @@ async function handleRegister(store, body, res) {
     fullName,
     email,
     password,
-    emailVerified: true,
+    emailVerified: false,
     demoMode,
     walletBalance: 500,
     pendingBalance: demoMode ? 24 : 0,
@@ -748,7 +797,7 @@ async function handleRegister(store, body, res) {
     );
   }
 
-  user.verificationCode = null;
+  setVerificationCode(user);
   const thread = createSupportThread(user);
   user.supportThreadId = thread.id;
   addNotification(
@@ -757,24 +806,34 @@ async function handleRegister(store, body, res) {
     "A $500 welcome balance has been added to your account. It becomes eligible for withdrawal after you activate an ongoing mining subscription on the platform.",
     "success"
   );
-  addNotification(user, "Account active", "Your account is ready. Sign in, review your dashboard, and enable 2FA any time from the security panel.", "success");
+  addNotification(
+    user,
+    "Verify your email to activate access",
+    `We sent a ${VERIFICATION_CODE_TTL_MINUTES}-minute verification code to ${user.email}. Confirm it to unlock your dashboard and support tools.`,
+    "info"
+  );
 
   store.users.push(user);
   store.supportThreads.push(thread);
   await writeStore(store);
 
-  const token = signToken({
-    sub: user.id,
-    role: user.role,
-    email: user.email,
-    exp: Date.now() + 7 * 86400000,
-  });
+  try {
+    await sendVerificationEmail(user);
+  } catch (error) {
+    console.error("Verification email delivery failed during registration:", error);
+    sendJson(res, 503, {
+      error: "Your account was created, but we could not send the verification code yet. Please try resend verification in a moment.",
+      requiresVerification: true,
+      email: user.email,
+    });
+    return;
+  }
 
   sendJson(res, 201, {
     success: true,
-    message: "Account created. Redirecting to your dashboard.",
-    token,
-    user: sanitizeUser(user),
+    requiresVerification: true,
+    email: user.email,
+    message: "We sent a six-digit verification code to your email. Enter it to finish activating your account.",
   });
 }
 
@@ -790,9 +849,12 @@ async function handleLogin(store, body, res) {
   }
 
   if (!user.emailVerified) {
-    user.emailVerified = true;
-    user.verificationCode = null;
-    addNotification(user, "Account access enabled", "Your account is now active and ready for dashboard access.", "success");
+    sendJson(res, 403, {
+      error: "Verify your email before signing in.",
+      requiresVerification: true,
+      email: user.email,
+    });
+    return;
   }
 
   if (user.twoFactor.enabled) {
@@ -808,15 +870,8 @@ async function handleLogin(store, body, res) {
   user.lastLoginAt = new Date().toISOString();
   await writeStore(store);
 
-  const token = signToken({
-    sub: user.id,
-    role: user.role,
-    email: user.email,
-    exp: Date.now() + 7 * 86400000,
-  });
-
   sendJson(res, 200, {
-    token,
+    token: issueSessionToken(user),
     user: sanitizeUser(user),
   });
 }
@@ -831,6 +886,26 @@ async function handleVerifyEmail(store, body, res) {
     return;
   }
 
+  if (user.emailVerified) {
+    sendJson(res, 400, { error: "That email is already verified. You can sign in normally now." });
+    return;
+  }
+
+  if (!code) {
+    sendJson(res, 400, { error: "Enter the six-digit verification code we emailed you." });
+    return;
+  }
+
+  if (user.verificationCodeExpiresAt && new Date(user.verificationCodeExpiresAt).getTime() < Date.now()) {
+    sendJson(res, 400, {
+      error: "That verification code has expired. Request a fresh code and try again.",
+      requiresVerification: true,
+      email: user.email,
+      codeExpired: true,
+    });
+    return;
+  }
+
   if (user.verificationCode !== code) {
     sendJson(res, 400, { error: "The verification code is invalid." });
     return;
@@ -838,10 +913,63 @@ async function handleVerifyEmail(store, body, res) {
 
   user.emailVerified = true;
   user.verificationCode = null;
-  addNotification(user, "Email verified", "Your account can now access the live dashboard and support desk.", "success");
+  user.verificationCodeExpiresAt = null;
+  user.lastLoginAt = new Date().toISOString();
+  addNotification(user, "Email verified", "Your email has been confirmed. Your dashboard, plans, and support desk are now ready to use.", "success");
+  addNotification(user, "Account active", "Review your plans, monitor performance, and enable 2FA any time from the security panel.", "success");
   await writeStore(store);
 
-  sendJson(res, 200, { success: true });
+  sendJson(res, 200, {
+    success: true,
+    message: "Email verified successfully. Redirecting to your dashboard.",
+    token: issueSessionToken(user),
+    user: sanitizeUser(user),
+  });
+}
+
+async function handleResendVerification(store, body, res) {
+  const email = String(body?.email || "").trim().toLowerCase();
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!email || !isValidEmail(email)) {
+    sendJson(res, 400, { error: "Enter the email address attached to your pending account." });
+    return;
+  }
+
+  if (!user) {
+    sendJson(res, 404, { error: "We could not find an account for that email." });
+    return;
+  }
+
+  if (user.emailVerified) {
+    sendJson(res, 400, { error: "That email is already verified. You can sign in normally now." });
+    return;
+  }
+
+  setVerificationCode(user);
+  await writeStore(store);
+
+  try {
+    await sendVerificationEmail(user);
+  } catch (error) {
+    console.error("Verification email delivery failed during resend:", error);
+    sendJson(res, 503, {
+      error: "We could not resend the verification code right now. Please try again shortly.",
+      requiresVerification: true,
+      email: user.email,
+    });
+    return;
+  }
+
+  addNotification(user, "Verification code resent", `We emailed a fresh ${VERIFICATION_CODE_TTL_MINUTES}-minute code to ${user.email}.`, "info");
+  await writeStore(store);
+
+  sendJson(res, 200, {
+    success: true,
+    requiresVerification: true,
+    email: user.email,
+    message: "A fresh verification code is on the way to your inbox.",
+  });
 }
 
 async function handleWithdrawal(store, user, body, res) {
@@ -1404,6 +1532,9 @@ function readStore() {
   store.announcements = (store.announcements || []).map(normalizeAnnouncement);
   store.users = (store.users || []).map((user) => ({
     ...user,
+    emailVerified: user.emailVerified !== false,
+    verificationCode: user.verificationCode || null,
+    verificationCodeExpiresAt: user.verificationCodeExpiresAt || null,
     activeContracts: (user.activeContracts || []).map(normalizeContractRecord),
     withdrawals: (user.withdrawals || []).map((item) => ({
       ...item,
@@ -1708,6 +1839,113 @@ function writeEmailPreview(email, subject, message) {
   const fileName = `${Date.now()}-${email.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.txt`;
   const content = `To: ${email}\nSubject: ${subject}\n\n${message}\n`;
   fs.writeFileSync(path.join(OUTBOX_DIR, fileName), content, "utf8");
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+}
+
+function getEmailDeliveryMode() {
+  if (SMTP_USER && SMTP_PASS) {
+    return "smtp";
+  }
+  return process.env.RENDER === "true" ? "unconfigured" : "preview";
+}
+
+function getMailTransport() {
+  if (mailTransport) {
+    return mailTransport;
+  }
+  const nodemailer = require("nodemailer");
+  mailTransport = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
+  return mailTransport;
+}
+
+async function sendPlatformEmail({ to, subject, text, html }) {
+  const mode = getEmailDeliveryMode();
+
+  if (mode === "preview") {
+    writeEmailPreview(to, subject, text);
+    return { mode };
+  }
+
+  if (mode === "unconfigured") {
+    throw new Error("Email delivery is not configured for this environment.");
+  }
+
+  await getMailTransport().sendMail({
+    from: EMAIL_FROM,
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  return { mode };
+}
+
+function buildVerificationEmail(user) {
+  const code = user.verificationCode;
+  const expiryText = `${VERIFICATION_CODE_TTL_MINUTES} minutes`;
+  const subject = "Verify your Northstar Mining account";
+  const text = [
+    `Welcome to Northstar Mining, ${user.fullName}.`,
+    "",
+    "Thank you for creating your account. Use the verification code below to confirm your email address and complete your account setup.",
+    "",
+    `Verification code: ${code}`,
+    `Code expires in: ${expiryText}`,
+    "",
+    "Once verified, you can review plans, activate subscriptions, and manage your dashboard from one place.",
+    "Northstar is designed to help you explore mining as a disciplined side-income stream, at your own pace.",
+    "",
+    "If you did not request this account, you can ignore this email.",
+  ].join("\n");
+  const html = `
+    <div style="margin:0;padding:32px 16px;background:#07111d;color:#e9eef7;font-family:Segoe UI,Arial,sans-serif;">
+      <div style="max-width:560px;margin:0 auto;background:linear-gradient(180deg,#0b1626 0%,#0a1220 100%);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:32px;">
+        <p style="margin:0 0 12px;color:#74e6f5;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;">Northstar Mining</p>
+        <h1 style="margin:0 0 16px;font-size:32px;line-height:1.1;color:#f4f7fb;">Verify your account</h1>
+        <p style="margin:0 0 14px;font-size:16px;line-height:1.65;color:#c8d4e4;">Welcome to Northstar Mining, <strong style="color:#ffffff;">${escapeHtml(user.fullName)}</strong>. Thank you for opening your account with us.</p>
+        <p style="margin:0 0 24px;font-size:16px;line-height:1.65;color:#c8d4e4;">Use the verification code below to confirm your email address and complete your account setup.</p>
+        <div style="margin:0 0 22px;padding:18px 20px;border-radius:18px;background:rgba(116,230,245,0.08);border:1px solid rgba(116,230,245,0.22);text-align:center;">
+          <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#88dfee;margin-bottom:10px;">Verification code</div>
+          <div style="font-size:34px;font-weight:700;letter-spacing:0.22em;color:#ffffff;">${escapeHtml(code)}</div>
+        </div>
+        <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#9fb0c6;">This code expires in ${expiryText}.</p>
+        <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#c8d4e4;">Once verified, you can review plans, activate subscriptions, and manage your dashboard from one place. Northstar is built to help you explore mining with structure, transparency, and room to grow at your own pace.</p>
+        <p style="margin:0;font-size:13px;line-height:1.6;color:#7f90a8;">If you did not request this account, you can safely ignore this email.</p>
+      </div>
+    </div>
+  `;
+  return { subject, text, html };
+}
+
+async function sendVerificationEmail(user) {
+  const { subject, text, html } = buildVerificationEmail(user);
+  return sendPlatformEmail({
+    to: user.email,
+    subject,
+    text,
+    html,
+  });
 }
 
 function hashPassword(password) {

@@ -48,6 +48,8 @@ const dom = {
   authStatus: document.querySelector("#authStatus"),
   registerForm: document.querySelector("#registerForm"),
   loginForm: document.querySelector("#loginForm"),
+  verifyForm: document.querySelector("#verifyForm"),
+  resendVerification: document.querySelector("#resendVerification"),
   supportToggle: document.querySelector("#supportToggle"),
   supportPanel: document.querySelector("#supportPanel"),
   supportClose: document.querySelector("#supportClose"),
@@ -97,6 +99,8 @@ function bindEvents() {
 
   dom.registerForm.addEventListener("submit", handleRegister);
   dom.loginForm.addEventListener("submit", handleLogin);
+  dom.verifyForm.addEventListener("submit", handleVerifyEmail);
+  dom.resendVerification.addEventListener("click", handleResendVerification);
   dom.calculatorForm.addEventListener("submit", (event) => {
     event.preventDefault();
     updateEstimate();
@@ -507,12 +511,30 @@ function closeAuth() {
 }
 
 function setAuthTab(tab) {
-  state.activeAuthTab = tab === "verify" ? "login" : tab;
+  state.activeAuthTab = ["register", "login", "verify"].includes(tab) ? tab : "register";
   document.querySelectorAll("[data-auth-tab]").forEach((button) => {
     button.classList.toggle("active", button.dataset.authTab === state.activeAuthTab);
   });
   dom.registerForm.classList.toggle("hidden", state.activeAuthTab !== "register");
   dom.loginForm.classList.toggle("hidden", state.activeAuthTab !== "login");
+  dom.verifyForm.classList.toggle("hidden", state.activeAuthTab !== "verify");
+}
+
+function fillAuthEmail(email) {
+  const normalized = String(email || "").trim();
+  if (!normalized) {
+    return;
+  }
+  ["#registerEmail", "#loginEmail", "#verifyEmail"].forEach((selector) => {
+    const input = document.querySelector(selector);
+    if (input) {
+      input.value = normalized;
+    }
+  });
+}
+
+function redirectAfterAuth(user) {
+  window.location.href = user.role === "admin" ? "/admin" : "/dashboard";
 }
 
 async function handleRegister(event) {
@@ -528,11 +550,16 @@ async function handleRegister(event) {
         demoMode: formData.get("demoMode") === "on",
       },
     });
-    Northstar.setToken(response.token);
-    dom.authStatus.textContent = "Account created. Redirecting to your dashboard...";
-    closeAuth();
-    window.location.href = response.user.role === "admin" ? "/admin" : "/dashboard";
+    event.currentTarget.reset();
+    fillAuthEmail(response.email || formData.get("email"));
+    setAuthTab("verify");
+    dom.authStatus.textContent = response.message || "We sent a verification code to your email. Enter it to finish activating your account.";
+    document.querySelector("#verifyCode")?.focus();
   } catch (error) {
+    if (error.requiresVerification) {
+      fillAuthEmail(error.email || formData.get("email"));
+      setAuthTab("verify");
+    }
     dom.authStatus.textContent = error.message;
   }
 }
@@ -552,12 +579,61 @@ async function handleLogin(event) {
     Northstar.setToken(response.token);
     dom.authStatus.textContent = "Login successful. Redirecting to your dashboard...";
     closeAuth();
-    if (response.user.role === "admin") {
-      window.location.href = "/admin";
-      return;
-    }
-    window.location.href = "/dashboard";
+    redirectAfterAuth(response.user);
   } catch (error) {
+    if (error.requiresVerification) {
+      fillAuthEmail(error.email || formData.get("email"));
+      setAuthTab("verify");
+    }
+    dom.authStatus.textContent = error.message;
+  }
+}
+
+async function handleVerifyEmail(event) {
+  event.preventDefault();
+  const formData = new FormData(event.currentTarget);
+  try {
+    const response = await Northstar.api("/api/auth/verify-email", {
+      method: "POST",
+      body: {
+        email: formData.get("email"),
+        code: formData.get("code"),
+      },
+    });
+    Northstar.setToken(response.token);
+    dom.authStatus.textContent = response.message || "Email verified. Redirecting to your dashboard...";
+    closeAuth();
+    redirectAfterAuth(response.user);
+  } catch (error) {
+    dom.authStatus.textContent = error.message;
+  }
+}
+
+async function handleResendVerification() {
+  const verifyEmail = document.querySelector("#verifyEmail")?.value?.trim() || document.querySelector("#loginEmail")?.value?.trim();
+  if (!verifyEmail) {
+    dom.authStatus.textContent = "Enter your email first so we know where to send the new code.";
+    setAuthTab("verify");
+    document.querySelector("#verifyEmail")?.focus();
+    return;
+  }
+
+  try {
+    const response = await Northstar.api("/api/auth/resend-verification", {
+      method: "POST",
+      body: {
+        email: verifyEmail,
+      },
+    });
+    fillAuthEmail(response.email || verifyEmail);
+    setAuthTab("verify");
+    dom.authStatus.textContent = response.message || "A fresh verification code is on the way to your inbox.";
+    document.querySelector("#verifyCode")?.focus();
+  } catch (error) {
+    if (error.requiresVerification) {
+      fillAuthEmail(error.email || verifyEmail);
+      setAuthTab("verify");
+    }
     dom.authStatus.textContent = error.message;
   }
 }

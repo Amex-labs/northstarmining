@@ -31,7 +31,9 @@ const Northstar = (() => {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.error || "Request failed.");
+      const error = new Error(payload.error || "Request failed.");
+      Object.assign(error, payload);
+      throw error;
     }
     return payload;
   }
