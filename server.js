@@ -1095,14 +1095,19 @@ async function handleAdjustment(store, admin, body, res) {
   }
 
   user.walletBalance = round(user.walletBalance + amountUsd, 2);
-  addNotification(user, "Balance adjustment posted", `${note} (${amountUsd >= 0 ? "+" : ""}$${amountUsd.toFixed(2)})`, amountUsd >= 0 ? "success" : "warning");
+  const adjustmentValue = `${amountUsd >= 0 ? "+" : "-"}${NorthstarAmount(Math.abs(amountUsd))}`;
+  const adjustmentMessage =
+    amountUsd >= 0
+      ? `We've credited ${adjustmentValue} to your wallet balance.\n\n${note}`
+      : `We've updated your wallet balance by ${adjustmentValue}.\n\n${note}`;
+  addNotification(user, "Wallet balance updated", adjustmentMessage, amountUsd >= 0 ? "success" : "warning");
   const thread = getOrCreateThread(store, user);
   thread.updatedAt = new Date().toISOString();
   thread.messages.push(
     createSupportMessage(
       "admin",
       "Northstar Operations",
-      `A manual wallet adjustment of ${amountUsd >= 0 ? "+" : ""}${NorthstarAmount(Math.abs(amountUsd))} was posted to your account. Note: ${note}`
+      adjustmentMessage
     )
   );
   store.auditLog.unshift({

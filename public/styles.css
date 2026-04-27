@@ -1138,6 +1138,17 @@ input[type="range"] {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.rich-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.rich-copy p {
+  margin: 0;
+  color: #d4e0ef;
+  line-height: 1.7;
+}
+
 .support-message.user {
   border-color: rgba(116, 230, 245, 0.28);
 }

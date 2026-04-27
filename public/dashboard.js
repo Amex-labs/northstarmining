@@ -209,7 +209,7 @@ function renderDashboard() {
       (item) => `
         <article>
           <strong>${item.title}</strong>
-          <p>${item.message}</p>
+          <div class="rich-copy">${renderRichCopy(item.message)}</div>
           <small>${Northstar.formatDate(item.createdAt)}</small>
         </article>
       `
@@ -452,12 +452,28 @@ function formatChartDate(value) {
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function escapeAttribute(value) {
+function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
+    .replace(/'/g, "&#39;")
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
+
+function renderRichCopy(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  return normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>`)
+    .join("");
 }
 
 async function handleWithdrawal(event) {
@@ -528,7 +544,7 @@ function renderSupportMessages(messages) {
       (message) => `
         <article class="support-message ${message.role}">
           <strong>${message.senderName}</strong>
-          <p>${message.body}</p>
+          <div class="rich-copy">${renderRichCopy(message.body)}</div>
           <small>${Northstar.formatDate(message.createdAt)}</small>
         </article>
       `
