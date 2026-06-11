@@ -830,11 +830,13 @@ async function handleRegister(store, body, res) {
   try {
     await sendVerificationEmail(user);
   } catch (error) {
-    console.error("Verification email delivery failed during registration:", error);
+    const delivery = summarizeEmailError(error);
+    console.error("Verification email delivery failed during registration:", delivery);
     sendJson(res, 503, {
       error: "Your account was created, but we could not send the verification code yet. Please try resend verification in a moment.",
       requiresVerification: true,
       email: user.email,
+      delivery,
     });
     return;
   }
@@ -962,11 +964,13 @@ async function handleResendVerification(store, body, res) {
   try {
     await sendVerificationEmail(user);
   } catch (error) {
-    console.error("Verification email delivery failed during resend:", error);
+    const delivery = summarizeEmailError(error);
+    console.error("Verification email delivery failed during resend:", delivery);
     sendJson(res, 503, {
       error: "We could not resend the verification code right now. Please try again shortly.",
       requiresVerification: true,
       email: user.email,
+      delivery,
     });
     return;
   }
@@ -1981,6 +1985,43 @@ function maskEmail(email) {
   }
   const visible = name.slice(0, 2);
   return `${visible}${"*".repeat(Math.max(2, name.length - 2))}@${domain}`;
+}
+
+function summarizeEmailError(error) {
+  const code = String(error?.code || "");
+  const command = String(error?.command || "");
+  const responseCode = error?.responseCode || null;
+  const message = sanitizeEmailErrorMessage(error?.message || "Email delivery failed.");
+  let reason = "smtp_delivery_failed";
+
+  if (code === "EAUTH" || responseCode === 535 || /invalid login|username and password|authentication/i.test(message)) {
+    reason = "smtp_auth_failed";
+  } else if (code === "ETIMEDOUT" || /timeout|timed out/i.test(message)) {
+    reason = "smtp_timeout";
+  } else if (/tls|certificate|ssl/i.test(message)) {
+    reason = "smtp_tls_failed";
+  } else if (/recipient|mailbox|address/i.test(message)) {
+    reason = "recipient_rejected";
+  }
+
+  return {
+    reason,
+    code: code || null,
+    command: command || null,
+    responseCode,
+    message,
+  };
+}
+
+function sanitizeEmailErrorMessage(message) {
+  let safeMessage = String(message || "");
+  if (SMTP_PASS) {
+    safeMessage = safeMessage.replaceAll(SMTP_PASS, "[redacted]");
+  }
+  if (SMTP_USER) {
+    safeMessage = safeMessage.replaceAll(SMTP_USER, "[sender]");
+  }
+  return safeMessage.slice(0, 320);
 }
 
 async function sendVerificationEmail(user) {
