@@ -20,8 +20,11 @@ const SMTP_SECURE = String(process.env.SMTP_SECURE || "").trim()
   ? !["false", "0", "no"].includes(String(process.env.SMTP_SECURE || "").trim().toLowerCase())
   : SMTP_PORT === 465;
 const SMTP_USER = String(process.env.SMTP_USER || "").trim();
-const SMTP_PASS = String(process.env.SMTP_PASS || "").trim();
+const SMTP_PASS = String(process.env.SMTP_PASS || "").replace(/\s+/g, "").trim();
 const EMAIL_FROM = String(process.env.EMAIL_FROM || "").trim() || (SMTP_USER ? `Northstar Mining <${SMTP_USER}>` : "Northstar Mining");
+const SMTP_CONNECTION_TIMEOUT_MS = Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 12000);
+const SMTP_GREETING_TIMEOUT_MS = Number(process.env.SMTP_GREETING_TIMEOUT_MS || 10000);
+const SMTP_SOCKET_TIMEOUT_MS = Number(process.env.SMTP_SOCKET_TIMEOUT_MS || 18000);
 const VERIFICATION_CODE_TTL_MINUTES = clampNumber(process.env.VERIFICATION_CODE_TTL_MINUTES, 5, 60, 15);
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -1882,6 +1885,9 @@ function getMailTransport() {
     host: SMTP_HOST,
     port: SMTP_PORT,
     secure: SMTP_SECURE,
+    connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+    greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
+    socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS,
