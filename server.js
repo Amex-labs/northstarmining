@@ -1902,7 +1902,7 @@ async function sendPlatformEmail({ to, subject, text, html }) {
     throw new Error("Email delivery is not configured for this environment.");
   }
 
-  await getMailTransport().sendMail({
+  const info = await getMailTransport().sendMail({
     from: EMAIL_FROM,
     to,
     subject,
@@ -1910,44 +1910,71 @@ async function sendPlatformEmail({ to, subject, text, html }) {
     html,
   });
 
-  return { mode };
+  console.info("Email delivery accepted", {
+    mode,
+    to: maskEmail(to),
+    messageId: info.messageId || null,
+    accepted: Array.isArray(info.accepted) ? info.accepted.map(maskEmail) : [],
+    rejected: Array.isArray(info.rejected) ? info.rejected.map(maskEmail) : [],
+    response: info.response || null,
+  });
+
+  return { mode, messageId: info.messageId || null };
 }
 
 function buildVerificationEmail(user) {
   const code = user.verificationCode;
   const expiryText = `${VERIFICATION_CODE_TTL_MINUTES} minutes`;
-  const subject = "Verify your Northstar Mining account";
+  const subject = `Your Northstar Mining verification code is ${code}`;
   const text = [
     `Welcome to Northstar Mining, ${user.fullName}.`,
     "",
-    "Thank you for creating your account. Use the verification code below to confirm your email address and complete your account setup.",
+    "Your account setup is almost complete. Please confirm this email address with the one-time verification code below.",
     "",
     `Verification code: ${code}`,
     `Code expires in: ${expiryText}`,
     "",
-    "Once verified, you can review plans, activate subscriptions, and manage your dashboard from one place.",
-    "Northstar is designed to help you explore mining as a disciplined side-income stream, at your own pace.",
+    "After verification, you can sign in, review available mining plans, and use your dashboard to track account activity and support messages.",
+    "For your security, this code is only used to activate a new Northstar Mining account.",
     "",
-    "If you did not request this account, you can ignore this email.",
+    "If you did not request this account, you can safely ignore this email.",
   ].join("\n");
   const html = `
-    <div style="margin:0;padding:32px 16px;background:#07111d;color:#e9eef7;font-family:Segoe UI,Arial,sans-serif;">
-      <div style="max-width:560px;margin:0 auto;background:linear-gradient(180deg,#0b1626 0%,#0a1220 100%);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:32px;">
-        <p style="margin:0 0 12px;color:#74e6f5;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;">Northstar Mining</p>
-        <h1 style="margin:0 0 16px;font-size:32px;line-height:1.1;color:#f4f7fb;">Verify your account</h1>
-        <p style="margin:0 0 14px;font-size:16px;line-height:1.65;color:#c8d4e4;">Welcome to Northstar Mining, <strong style="color:#ffffff;">${escapeHtml(user.fullName)}</strong>. Thank you for opening your account with us.</p>
-        <p style="margin:0 0 24px;font-size:16px;line-height:1.65;color:#c8d4e4;">Use the verification code below to confirm your email address and complete your account setup.</p>
-        <div style="margin:0 0 22px;padding:18px 20px;border-radius:18px;background:rgba(116,230,245,0.08);border:1px solid rgba(116,230,245,0.22);text-align:center;">
-          <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#88dfee;margin-bottom:10px;">Verification code</div>
-          <div style="font-size:34px;font-weight:700;letter-spacing:0.22em;color:#ffffff;">${escapeHtml(code)}</div>
+    <div style="display:none;max-height:0;overflow:hidden;color:transparent;opacity:0;">
+      Use this one-time code to activate your Northstar Mining account. It expires in ${expiryText}.
+    </div>
+    <div style="margin:0;padding:34px 16px;background:#06101b;color:#e9eef7;font-family:Segoe UI,Arial,sans-serif;">
+      <div style="max-width:600px;margin:0 auto;border-radius:28px;overflow:hidden;background:#0b1626;border:1px solid rgba(116,230,245,0.18);box-shadow:0 22px 70px rgba(0,0,0,0.34);">
+        <div style="padding:28px 32px;background:linear-gradient(135deg,#102236 0%,#102f35 50%,#0b1626 100%);border-bottom:1px solid rgba(255,255,255,0.08);">
+          <p style="margin:0 0 10px;color:#7ee7f4;font-size:12px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;">Northstar Mining</p>
+          <h1 style="margin:0;color:#f6f9ff;font-size:30px;line-height:1.15;">Confirm your email address</h1>
+          <p style="margin:14px 0 0;color:#c8d4e4;font-size:15px;line-height:1.65;">Welcome, <strong style="color:#ffffff;">${escapeHtml(user.fullName)}</strong>. Your account setup is almost complete.</p>
         </div>
-        <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#9fb0c6;">This code expires in ${expiryText}.</p>
-        <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#c8d4e4;">Once verified, you can review plans, activate subscriptions, and manage your dashboard from one place. Northstar is built to help you explore mining with structure, transparency, and room to grow at your own pace.</p>
-        <p style="margin:0;font-size:13px;line-height:1.6;color:#7f90a8;">If you did not request this account, you can safely ignore this email.</p>
+        <div style="padding:30px 32px 32px;">
+          <p style="margin:0 0 22px;color:#c8d4e4;font-size:16px;line-height:1.7;">Enter the secure one-time code below on the Northstar Mining verification screen to activate your dashboard access.</p>
+          <div style="margin:0 0 24px;padding:22px 18px;border-radius:22px;background:linear-gradient(135deg,rgba(116,230,245,0.14),rgba(123,238,192,0.10));border:1px solid rgba(116,230,245,0.34);text-align:center;">
+            <div style="margin-bottom:12px;color:#8ceaf7;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;">Verification code</div>
+            <div style="color:#ffffff;font-size:38px;font-weight:800;letter-spacing:0.24em;line-height:1;">${escapeHtml(code)}</div>
+          </div>
+          <div style="margin:0 0 22px;padding:16px 18px;border-radius:18px;background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.08);">
+            <p style="margin:0;color:#d8e2ef;font-size:14px;line-height:1.7;"><strong style="color:#ffffff;">Security note:</strong> This code expires in ${expiryText} and is only used to verify a new Northstar Mining account.</p>
+          </div>
+          <p style="margin:0 0 18px;color:#c8d4e4;font-size:15px;line-height:1.75;">After verification, you can sign in, review available mining plans, and use your dashboard to track account activity and support messages.</p>
+          <p style="margin:0;color:#8092aa;font-size:13px;line-height:1.65;">If you did not request this account, no action is needed. You can safely ignore this email.</p>
+        </div>
       </div>
     </div>
   `;
   return { subject, text, html };
+}
+
+function maskEmail(email) {
+  const [name, domain] = String(email || "").split("@");
+  if (!name || !domain) {
+    return "unknown";
+  }
+  const visible = name.slice(0, 2);
+  return `${visible}${"*".repeat(Math.max(2, name.length - 2))}@${domain}`;
 }
 
 async function sendVerificationEmail(user) {
