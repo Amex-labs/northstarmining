@@ -69,6 +69,15 @@ const Northstar = (() => {
     return `${sign}${Number(value || 0).toFixed(2)}%`;
   }
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
   function connectSocket(onMessage) {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const token = getToken();
@@ -92,6 +101,7 @@ const Northstar = (() => {
     api,
     clearToken,
     connectSocket,
+    escapeHtml,
     formatCurrency,
     formatDate,
     formatNumber,

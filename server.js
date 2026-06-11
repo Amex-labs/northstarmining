@@ -12,8 +12,11 @@ const DATA_DIR = path.join(ROOT_DIR, "data");
 const OUTBOX_DIR = path.join(ROOT_DIR, "outbox", "email");
 const STORE_PATH = path.join(DATA_DIR, "store.json");
 const STORE_KEY = "northstar-primary-store";
+const IS_RENDER = process.env.RENDER === "true";
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
-const TOKEN_SECRET = process.env.TOKEN_SECRET || "northstar-demo-secret";
+const TOKEN_SECRET =
+  String(process.env.TOKEN_SECRET || "").trim() ||
+  (IS_RENDER ? crypto.randomBytes(48).toString("hex") : "northstar-demo-secret");
 const SMTP_HOST = String(process.env.SMTP_HOST || "smtp.gmail.com").trim();
 const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
 const SMTP_SECURE = String(process.env.SMTP_SECURE || "").trim()
@@ -371,12 +374,16 @@ async function ensureRuntime() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(OUTBOX_DIR, { recursive: true });
 
+  if (IS_RENDER && !String(process.env.TOKEN_SECRET || "").trim()) {
+    console.warn("TOKEN_SECRET is not set. Generated a temporary runtime secret; set TOKEN_SECRET in Render for stable sessions.");
+  }
+
   if (DATABASE_URL) {
     await ensureDatabaseStore();
     return;
   }
 
-  if (process.env.RENDER === "true") {
+  if (IS_RENDER) {
     console.warn("DATABASE_URL is not set. Render will reset file-backed account data on restart or spin-down.");
   }
 
@@ -477,6 +484,7 @@ function buildInitialStore() {
         createdAt: new Date(Date.now() - 3600000).toISOString(),
       },
     ],
+    emailDeliveryLog: [],
     auditLog: [
       {
         id: randomId("audit"),
@@ -538,13 +546,13 @@ async function handleApi(req, res, requestUrl) {
       time: new Date().toISOString(),
       storage: {
         mode: DATABASE_URL ? "postgres" : "file",
-        durable: DATABASE_URL ? true : process.env.RENDER !== "true",
+        durable: DATABASE_URL ? true : !IS_RENDER,
       },
       email: {
         mode: getEmailDeliveryMode(),
-        sender: SMTP_USER || null,
-        from: EMAIL_FROM,
         smtpConfigured: Boolean(SMTP_USER && SMTP_PASS),
+        senderConfigured: Boolean(SMTP_USER),
+        fromConfigured: Boolean(EMAIL_FROM),
       },
     });
     return;
@@ -773,14 +781,64 @@ async function handleRegister(store, body, res) {
 
   if (existingUser) {
     if (!existingUser.emailVerified) {
-      sendJson(res, 409, {
-        error: "An account with that email is already waiting for verification.",
+      if (!verifyPassword(password, existingUser.passwordHash)) {
+        sendJson(res, 409, {
+          error: "An account with that email is already waiting for verification. Use the Verify email tab to request a fresh code.",
+          requiresVerification: true,
+          email,
+        });
+        return;
+      }
+
+      setVerificationCode(existingUser);
+      await writeStore(store);
+
+      try {
+        const delivery = await sendVerificationEmail(existingUser);
+        recordEmailDelivery(store, {
+          context: "pending-registration",
+          status: "accepted",
+          email: existingUser.email,
+          delivery,
+        });
+        addNotification(
+          existingUser,
+          "Fresh verification code sent",
+          `We emailed a fresh ${VERIFICATION_CODE_TTL_MINUTES}-minute verification code to ${existingUser.email}.`,
+          "info"
+        );
+        await writeStore(store);
+      } catch (error) {
+        const delivery = summarizeEmailError(error);
+        recordEmailDelivery(store, {
+          context: "pending-registration",
+          status: "failed",
+          email: existingUser.email,
+          delivery,
+        });
+        await writeStore(store);
+        console.error("Verification email delivery failed during pending registration:", delivery);
+        sendJson(res, 503, {
+          error: "That account is waiting for verification, but we could not send a fresh code right now.",
+          requiresVerification: true,
+          email,
+        });
+        return;
+      }
+
+      sendJson(res, 200, {
+        success: true,
         requiresVerification: true,
         email,
+        message: "That account is already waiting for verification, so we sent a fresh code to the email address on file.",
       });
       return;
     }
-    sendJson(res, 400, { error: "An account with that email already exists." });
+    sendJson(res, 409, {
+      error: "An account with that email is already registered. Please log in with your existing credentials.",
+      alreadyRegistered: true,
+      email,
+    });
     return;
   }
 
@@ -828,15 +886,28 @@ async function handleRegister(store, body, res) {
   await writeStore(store);
 
   try {
-    await sendVerificationEmail(user);
+    const delivery = await sendVerificationEmail(user);
+    recordEmailDelivery(store, {
+      context: "registration",
+      status: "accepted",
+      email: user.email,
+      delivery,
+    });
+    await writeStore(store);
   } catch (error) {
     const delivery = summarizeEmailError(error);
+    recordEmailDelivery(store, {
+      context: "registration",
+      status: "failed",
+      email: user.email,
+      delivery,
+    });
+    await writeStore(store);
     console.error("Verification email delivery failed during registration:", delivery);
     sendJson(res, 503, {
       error: "Your account was created, but we could not send the verification code yet. Please try resend verification in a moment.",
       requiresVerification: true,
       email: user.email,
-      delivery,
     });
     return;
   }
@@ -893,13 +964,22 @@ async function handleVerifyEmail(store, body, res) {
   const code = String(body?.code || "").trim();
   const user = store.users.find((entry) => entry.email === email);
 
-  if (!user || !user.verificationCode) {
+  if (!user) {
     sendJson(res, 400, { error: "No verification is pending for that email." });
     return;
   }
 
   if (user.emailVerified) {
-    sendJson(res, 400, { error: "That email is already verified. You can sign in normally now." });
+    sendJson(res, 400, {
+      error: "That email is already verified. Please log in with your existing credentials.",
+      alreadyRegistered: true,
+      email: user.email,
+    });
+    return;
+  }
+
+  if (!user.verificationCode) {
+    sendJson(res, 400, { error: "No verification is pending for that email." });
     return;
   }
 
@@ -954,7 +1034,11 @@ async function handleResendVerification(store, body, res) {
   }
 
   if (user.emailVerified) {
-    sendJson(res, 400, { error: "That email is already verified. You can sign in normally now." });
+    sendJson(res, 400, {
+      error: "That email is already verified. Please log in with your existing credentials.",
+      alreadyRegistered: true,
+      email: user.email,
+    });
     return;
   }
 
@@ -962,15 +1046,27 @@ async function handleResendVerification(store, body, res) {
   await writeStore(store);
 
   try {
-    await sendVerificationEmail(user);
+    const delivery = await sendVerificationEmail(user);
+    recordEmailDelivery(store, {
+      context: "resend",
+      status: "accepted",
+      email: user.email,
+      delivery,
+    });
   } catch (error) {
     const delivery = summarizeEmailError(error);
+    recordEmailDelivery(store, {
+      context: "resend",
+      status: "failed",
+      email: user.email,
+      delivery,
+    });
+    await writeStore(store);
     console.error("Verification email delivery failed during resend:", delivery);
     sendJson(res, 503, {
       error: "We could not resend the verification code right now. Please try again shortly.",
       requiresVerification: true,
       email: user.email,
-      delivery,
     });
     return;
   }
@@ -1340,6 +1436,7 @@ function buildAdminOverview(store) {
         };
       }),
     announcements: store.announcements.slice(0, 5),
+    emailDeliveryLog: (store.emailDeliveryLog || []).slice(0, 12),
     auditLog: store.auditLog.slice(0, 12),
   };
 }
@@ -1549,6 +1646,7 @@ function readStore() {
   store.faqs = FAQS;
   store.disclosures = DISCLOSURES;
   store.announcements = (store.announcements || []).map(normalizeAnnouncement);
+  store.auditLog = Array.isArray(store.auditLog) ? store.auditLog : [];
   store.users = (store.users || []).map((user) => ({
     ...user,
     emailVerified: user.emailVerified !== false,
@@ -1562,6 +1660,7 @@ function readStore() {
       network: item.network || "Bitcoin",
     })),
   }));
+  store.emailDeliveryLog = Array.isArray(store.emailDeliveryLog) ? store.emailDeliveryLog.slice(0, 40) : [];
   return store;
 }
 
@@ -1821,6 +1920,33 @@ function createNotification(title, message, level) {
   };
 }
 
+function recordEmailDelivery(store, { context, status, email, delivery }) {
+  const event = {
+    id: randomId("mail"),
+    context,
+    status,
+    email: maskEmail(email),
+    reason: delivery?.reason || null,
+    code: delivery?.code || null,
+    command: delivery?.command || null,
+    responseCode: delivery?.responseCode || null,
+    message: delivery?.message || (status === "accepted" ? "Provider accepted the message for delivery." : null),
+    messageIdPresent: Boolean(delivery?.messageId),
+    createdAt: new Date().toISOString(),
+  };
+  store.emailDeliveryLog = [event, ...(store.emailDeliveryLog || [])].slice(0, 40);
+  store.auditLog.unshift({
+    id: randomId("audit"),
+    type: "email_delivery",
+    detail:
+      status === "accepted"
+        ? `Verification email accepted for ${event.email} during ${context}.`
+        : `Verification email failed for ${event.email} during ${context}: ${event.reason || "smtp_delivery_failed"}.`,
+    createdAt: event.createdAt,
+  });
+  store.auditLog = store.auditLog.slice(0, 80);
+}
+
 function createSupportThread(user) {
   return {
     id: randomId("thread"),
@@ -1877,7 +2003,7 @@ function getEmailDeliveryMode() {
   if (SMTP_USER && SMTP_PASS) {
     return "smtp";
   }
-  return process.env.RENDER === "true" ? "unconfigured" : "preview";
+  return IS_RENDER ? "unconfigured" : "preview";
 }
 
 function getMailTransport() {
@@ -2021,6 +2147,7 @@ function sanitizeEmailErrorMessage(message) {
   if (SMTP_USER) {
     safeMessage = safeMessage.replaceAll(SMTP_USER, "[sender]");
   }
+  safeMessage = safeMessage.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, (match) => maskEmail(match));
   return safeMessage.slice(0, 320);
 }
 

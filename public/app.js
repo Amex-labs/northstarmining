@@ -458,7 +458,7 @@ async function updateEstimate() {
     });
     renderEstimate(payload.estimate);
   } catch (error) {
-    dom.estimateOutput.innerHTML = `<p>${error.message}</p>`;
+    dom.estimateOutput.innerHTML = `<p>${Northstar.escapeHtml(error.message)}</p>`;
   }
 }
 
@@ -556,9 +556,14 @@ async function handleRegister(event) {
     dom.authStatus.textContent = response.message || "We sent a verification code to your email. Enter it to finish activating your account.";
     document.querySelector("#verifyCode")?.focus();
   } catch (error) {
-    if (error.requiresVerification) {
+    if (error.alreadyRegistered) {
+      fillAuthEmail(error.email || formData.get("email"));
+      setAuthTab("login");
+      document.querySelector("#loginPassword")?.focus();
+    } else if (error.requiresVerification) {
       fillAuthEmail(error.email || formData.get("email"));
       setAuthTab("verify");
+      document.querySelector("#verifyCode")?.focus();
     }
     dom.authStatus.textContent = error.message;
   }
@@ -584,6 +589,7 @@ async function handleLogin(event) {
     if (error.requiresVerification) {
       fillAuthEmail(error.email || formData.get("email"));
       setAuthTab("verify");
+      document.querySelector("#verifyCode")?.focus();
     }
     dom.authStatus.textContent = error.message;
   }
@@ -605,6 +611,11 @@ async function handleVerifyEmail(event) {
     closeAuth();
     redirectAfterAuth(response.user);
   } catch (error) {
+    if (error.alreadyRegistered) {
+      fillAuthEmail(error.email || formData.get("email"));
+      setAuthTab("login");
+      document.querySelector("#loginPassword")?.focus();
+    }
     dom.authStatus.textContent = error.message;
   }
 }
@@ -619,6 +630,8 @@ async function handleResendVerification() {
   }
 
   try {
+    dom.resendVerification.disabled = true;
+    dom.resendVerification.textContent = "Sending...";
     const response = await Northstar.api("/api/auth/resend-verification", {
       method: "POST",
       body: {
@@ -630,11 +643,18 @@ async function handleResendVerification() {
     dom.authStatus.textContent = response.message || "A fresh verification code is on the way to your inbox.";
     document.querySelector("#verifyCode")?.focus();
   } catch (error) {
-    if (error.requiresVerification) {
+    if (error.alreadyRegistered) {
+      fillAuthEmail(error.email || verifyEmail);
+      setAuthTab("login");
+      document.querySelector("#loginPassword")?.focus();
+    } else if (error.requiresVerification) {
       fillAuthEmail(error.email || verifyEmail);
       setAuthTab("verify");
     }
     dom.authStatus.textContent = error.message;
+  } finally {
+    dom.resendVerification.disabled = false;
+    dom.resendVerification.textContent = "Resend code";
   }
 }
 
@@ -689,8 +709,8 @@ function renderSupportThread() {
     .map(
       (message) => `
         <article class="support-message ${message.role}">
-          <strong>${message.senderName}</strong>
-          <p>${message.body}</p>
+          <strong>${Northstar.escapeHtml(message.senderName)}</strong>
+          <p>${Northstar.escapeHtml(message.body)}</p>
           <small>${Northstar.formatDate(message.createdAt)}</small>
         </article>
       `

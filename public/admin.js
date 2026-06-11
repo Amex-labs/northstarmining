@@ -31,6 +31,7 @@ const adminDom = {
   broadcastForm: document.querySelector("#broadcastForm"),
   broadcastStatus: document.querySelector("#broadcastStatus"),
   auditLog: document.querySelector("#auditLog"),
+  emailDeliveryLog: document.querySelector("#emailDeliveryLog"),
 };
 
 startAdmin();
@@ -105,7 +106,8 @@ async function refreshAdmin() {
 }
 
 function renderAdmin() {
-  const { metrics, users, threads, auditLog, pendingWithdrawals } = adminState.overview;
+  const { metrics, users, threads, auditLog, pendingWithdrawals, emailDeliveryLog } = adminState.overview;
+  const escape = Northstar.escapeHtml;
 
   adminDom.adminIdentity.textContent = "Northstar Operations";
   adminDom.metricUsers.textContent = metrics.totalUsers;
@@ -118,8 +120,8 @@ function renderAdmin() {
   adminDom.userTableBody.innerHTML = users
     .map(
       (user) => `
-        <tr data-user-pick="${user.id}">
-          <td><strong>${user.fullName}</strong><br /><small>${user.email}</small></td>
+        <tr data-user-pick="${escape(user.id)}">
+          <td><strong>${escape(user.fullName)}</strong><br /><small>${escape(user.email)}</small></td>
           <td>${Northstar.formatCurrency(user.walletBalanceUsd)}<br /><small>Pending ${Northstar.formatCurrency(user.pendingBalanceUsd)}</small></td>
           <td>${user.contractCount}<br /><small>${user.demoMode ? "Demo" : "Live"}</small></td>
           <td>${user.emailVerified ? "Verified" : "Pending"}<br /><small>${user.twoFactorEnabled ? "2FA on" : "2FA off"}</small></td>
@@ -131,7 +133,7 @@ function renderAdmin() {
 
   const currentAdjustUserId = adminState.selectedAdjustmentUserId || adminDom.adjustUserSelect.value || users[0]?.id || "";
   adminDom.adjustUserSelect.innerHTML = users
-    .map((user) => `<option value="${user.id}">${user.fullName} (${user.email})</option>`)
+    .map((user) => `<option value="${escape(user.id)}">${escape(user.fullName)} (${escape(user.email)})</option>`)
     .join("");
   if (users.some((user) => user.id === currentAdjustUserId)) {
     adminDom.adjustUserSelect.value = currentAdjustUserId;
@@ -143,11 +145,11 @@ function renderAdmin() {
         .map(
           (item) => `
             <article>
-              <strong>${item.userName} • ${Northstar.formatCurrency(item.amountUsd)}</strong>
-              <p>${item.assetLabel || item.asset} on ${item.network}</p>
-              <p>${item.address}</p>
+              <strong>${escape(item.userName)} • ${Northstar.formatCurrency(item.amountUsd)}</strong>
+              <p>${escape(item.assetLabel || item.asset)} on ${escape(item.network)}</p>
+              <p>${escape(item.address)}</p>
               <small>${item.status} • ${Northstar.formatDate(item.createdAt)}</small>
-              ${item.threadId ? `<button class="ghost-button small" type="button" data-thread-jump="${item.threadId}">Open chat</button>` : ""}
+              ${item.threadId ? `<button class="ghost-button small" type="button" data-thread-jump="${escape(item.threadId)}">Open chat</button>` : ""}
             </article>
           `
         )
@@ -157,9 +159,9 @@ function renderAdmin() {
   adminDom.threadList.innerHTML = threads
     .map(
       (thread) => `
-        <article class="thread-card ${thread.id === adminState.selectedThreadId ? "selected" : ""}" data-thread-id="${thread.id}">
-          <strong>${thread.user?.fullName || "Unknown user"}</strong>
-          <p>${thread.title}</p>
+        <article class="thread-card ${thread.id === adminState.selectedThreadId ? "selected" : ""}" data-thread-id="${escape(thread.id)}">
+          <strong>${escape(thread.user?.fullName || "Unknown user")}</strong>
+          <p>${escape(thread.title)}</p>
           <small>${thread.status} • ${Northstar.formatDate(thread.updatedAt)}</small>
         </article>
       `
@@ -170,13 +172,28 @@ function renderAdmin() {
     .map(
       (item) => `
         <article>
-          <strong>${item.type}</strong>
-          <p>${item.detail}</p>
+          <strong>${escape(item.type)}</strong>
+          <p>${escape(item.detail)}</p>
           <small>${Northstar.formatDate(item.createdAt)}</small>
         </article>
       `
     )
     .join("");
+
+  adminDom.emailDeliveryLog.innerHTML = emailDeliveryLog?.length
+    ? emailDeliveryLog
+        .map(
+          (item) => `
+            <article>
+              <strong>${item.status === "accepted" ? "Accepted by SMTP" : "Delivery failed"}</strong>
+              <p>${escape(item.context)} • ${escape(item.email)}</p>
+              <p>${escape(item.reason || item.message || "Provider accepted the message for delivery.")}</p>
+              <small>${Northstar.formatDate(item.createdAt)}</small>
+            </article>
+          `
+        )
+        .join("")
+    : "<p class='support-system'>No verification email attempts have been recorded yet.</p>";
 
   if (!adminState.selectedThreadId && threads[0]) {
     adminState.selectedThreadId = threads[0].id;
@@ -220,8 +237,8 @@ function renderSelectedThread() {
     .map(
       (message) => `
         <article class="support-message ${message.role}">
-          <strong>${message.senderName}</strong>
-          <p>${message.body}</p>
+          <strong>${Northstar.escapeHtml(message.senderName)}</strong>
+          <p>${Northstar.escapeHtml(message.body)}</p>
           <small>${Northstar.formatDate(message.createdAt)}</small>
         </article>
       `

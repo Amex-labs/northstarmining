@@ -137,6 +137,7 @@ async function refreshDashboard() {
 
 function renderDashboard() {
   const { user, metrics, announcements, contracts, withdrawals, notifications, support, availablePlans } = dashboardState.summary;
+  const escape = Northstar.escapeHtml;
 
   dashboardDom.userIdentity.textContent = `${user.fullName}\n${user.email}`;
   dashboardDom.demoModeBadge.textContent = user.demoMode ? "Guided onboarding active" : "Live portfolio";
@@ -154,8 +155,8 @@ function renderDashboard() {
     .map(
       (item) => `
         <article>
-          <strong>${item.title}</strong>
-          <p>${item.message}</p>
+          <strong>${escape(item.title)}</strong>
+          <p>${escape(item.message)}</p>
           <small>${Northstar.formatDate(item.createdAt)}</small>
         </article>
       `
@@ -168,15 +169,15 @@ function renderDashboard() {
         <article class="contract-card">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">${contract.coinSymbol}</p>
-              <h3>${contract.name}</h3>
+              <p class="eyebrow">${escape(contract.coinSymbol)}</p>
+              <h3>${escape(contract.name)}</h3>
             </div>
             <strong>${Northstar.formatCurrency(contract.netDailyUsd)}/day</strong>
           </div>
           <div class="metric-list">
-            <div><span>Hashrate</span><strong>${contract.hashrateLabel}</strong></div>
-            <div><span>Power draw</span><strong>${contract.powerLabel}</strong></div>
-            <div><span>Data center</span><strong>${contract.dataCenter}</strong></div>
+            <div><span>Hashrate</span><strong>${escape(contract.hashrateLabel)}</strong></div>
+            <div><span>Power draw</span><strong>${escape(contract.powerLabel)}</strong></div>
+            <div><span>Data center</span><strong>${escape(contract.dataCenter)}</strong></div>
             <div><span>Monthly estimate</span><strong>${Northstar.formatCurrency(contract.netMonthlyUsd)}</strong></div>
             <div><span>Low / high case</span><strong>${Northstar.formatCurrency(contract.lowCaseUsd)} to ${Northstar.formatCurrency(contract.highCaseUsd)}</strong></div>
           </div>
@@ -191,9 +192,9 @@ function renderDashboard() {
       (item) => `
         <article>
           <strong>${Northstar.formatCurrency(item.amountUsd)}</strong>
-          <p>${item.assetLabel || item.asset} • ${item.network}</p>
-          <p>${item.address}</p>
-          <small>${item.status} • ${Northstar.formatDate(item.createdAt)}</small>
+          <p>${escape(item.assetLabel || item.asset)} • ${escape(item.network)}</p>
+          <p>${escape(item.address)}</p>
+          <small>${escape(item.status)} • ${Northstar.formatDate(item.createdAt)}</small>
         </article>
       `
     )
@@ -208,7 +209,7 @@ function renderDashboard() {
     .map(
       (item) => `
         <article>
-          <strong>${item.title}</strong>
+          <strong>${escape(item.title)}</strong>
           <div class="rich-copy">${renderRichCopy(item.message)}</div>
           <small>${Northstar.formatDate(item.createdAt)}</small>
         </article>
@@ -453,12 +454,7 @@ function formatChartDate(value) {
 }
 
 function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/'/g, "&#39;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return Northstar.escapeHtml(value);
 }
 
 function escapeAttribute(value) {
@@ -543,7 +539,7 @@ function renderSupportMessages(messages) {
     .map(
       (message) => `
         <article class="support-message ${message.role}">
-          <strong>${message.senderName}</strong>
+          <strong>${Northstar.escapeHtml(message.senderName)}</strong>
           <div class="rich-copy">${renderRichCopy(message.body)}</div>
           <small>${Northstar.formatDate(message.createdAt)}</small>
         </article>
@@ -561,7 +557,7 @@ function populateWithdrawalAssets() {
 
   const selectedAsset = dashboardDom.withdrawAsset.value && options[dashboardDom.withdrawAsset.value] ? dashboardDom.withdrawAsset.value : assetEntries[0][0];
   dashboardDom.withdrawAsset.innerHTML = assetEntries
-    .map(([symbol, config]) => `<option value="${symbol}">${config.label} (${symbol})</option>`)
+    .map(([symbol, config]) => `<option value="${Northstar.escapeHtml(symbol)}">${Northstar.escapeHtml(config.label)} (${Northstar.escapeHtml(symbol)})</option>`)
     .join("");
   dashboardDom.withdrawAsset.value = selectedAsset;
   populateWithdrawalNetworks();
@@ -574,7 +570,9 @@ function populateWithdrawalNetworks() {
     dashboardDom.withdrawNetwork.innerHTML = "";
     return;
   }
-  dashboardDom.withdrawNetwork.innerHTML = config.networks.map((network) => `<option value="${network}">${network}</option>`).join("");
+  dashboardDom.withdrawNetwork.innerHTML = config.networks
+    .map((network) => `<option value="${Northstar.escapeHtml(network)}">${Northstar.escapeHtml(network)}</option>`)
+    .join("");
 }
 
 function handleSupportReply(event) {
