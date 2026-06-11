@@ -537,6 +537,12 @@ async function handleApi(req, res, requestUrl) {
         mode: DATABASE_URL ? "postgres" : "file",
         durable: DATABASE_URL ? true : process.env.RENDER !== "true",
       },
+      email: {
+        mode: getEmailDeliveryMode(),
+        sender: SMTP_USER || null,
+        from: EMAIL_FROM,
+        smtpConfigured: Boolean(SMTP_USER && SMTP_PASS),
+      },
     });
     return;
   }
