@@ -50,6 +50,8 @@ const dom = {
   loginForm: document.querySelector("#loginForm"),
   verifyForm: document.querySelector("#verifyForm"),
   resendVerification: document.querySelector("#resendVerification"),
+  verificationCodeNotice: document.querySelector("#verificationCodeNotice"),
+  verificationCodeValue: document.querySelector("#verificationCodeValue"),
   supportToggle: document.querySelector("#supportToggle"),
   supportPanel: document.querySelector("#supportPanel"),
   supportClose: document.querySelector("#supportClose"),
@@ -501,6 +503,9 @@ function updateSliderLabels() {
 
 function openAuth(tab) {
   setAuthTab(tab || "register");
+  if (tab !== "verify") {
+    clearVerificationCodeNotice();
+  }
   dom.authModal.classList.remove("hidden");
   dom.authModal.setAttribute("aria-hidden", "false");
 }
@@ -533,6 +538,22 @@ function fillAuthEmail(email) {
   });
 }
 
+function showVerificationCodeNotice(response) {
+  const code = String(response?.verificationCode || "").trim();
+  if (!code || !dom.verificationCodeNotice || !dom.verificationCodeValue) {
+    return;
+  }
+  dom.verificationCodeValue.textContent = code;
+  dom.verificationCodeNotice.classList.remove("hidden");
+}
+
+function clearVerificationCodeNotice() {
+  if (dom.verificationCodeValue) {
+    dom.verificationCodeValue.textContent = "------";
+  }
+  dom.verificationCodeNotice?.classList.add("hidden");
+}
+
 function redirectAfterAuth(user) {
   window.location.href = user.role === "admin" ? "/admin" : "/dashboard";
 }
@@ -553,11 +574,14 @@ async function handleRegister(event) {
     event.currentTarget.reset();
     fillAuthEmail(response.email || formData.get("email"));
     setAuthTab("verify");
-    dom.authStatus.textContent = response.message || "We sent a verification code to your email. Enter it to finish activating your account.";
+    clearVerificationCodeNotice();
+    showVerificationCodeNotice(response);
+    dom.authStatus.textContent = response.message || "Click Generate OTP to create your account activation code.";
     document.querySelector("#verifyCode")?.focus();
   } catch (error) {
     if (error.alreadyRegistered) {
       fillAuthEmail(error.email || formData.get("email"));
+      clearVerificationCodeNotice();
       setAuthTab("login");
       document.querySelector("#loginPassword")?.focus();
     } else if (error.requiresVerification) {
@@ -607,12 +631,13 @@ async function handleVerifyEmail(event) {
       },
     });
     Northstar.setToken(response.token);
-    dom.authStatus.textContent = response.message || "Email verified. Redirecting to your dashboard...";
+    dom.authStatus.textContent = response.message || "Account activated. Redirecting to your dashboard...";
     closeAuth();
     redirectAfterAuth(response.user);
   } catch (error) {
     if (error.alreadyRegistered) {
       fillAuthEmail(error.email || formData.get("email"));
+      clearVerificationCodeNotice();
       setAuthTab("login");
       document.querySelector("#loginPassword")?.focus();
     }
@@ -631,8 +656,8 @@ async function handleResendVerification() {
 
   try {
     dom.resendVerification.disabled = true;
-    dom.resendVerification.textContent = "Sending...";
-    const response = await Northstar.api("/api/auth/resend-verification", {
+    dom.resendVerification.textContent = "Generating...";
+    const response = await Northstar.api("/api/auth/generate-otp", {
       method: "POST",
       body: {
         email: verifyEmail,
@@ -640,11 +665,13 @@ async function handleResendVerification() {
     });
     fillAuthEmail(response.email || verifyEmail);
     setAuthTab("verify");
-    dom.authStatus.textContent = response.message || "A fresh verification code is on the way to your inbox.";
+    showVerificationCodeNotice(response);
+    dom.authStatus.textContent = response.message || "Your OTP is ready below.";
     document.querySelector("#verifyCode")?.focus();
   } catch (error) {
     if (error.alreadyRegistered) {
       fillAuthEmail(error.email || verifyEmail);
+      clearVerificationCodeNotice();
       setAuthTab("login");
       document.querySelector("#loginPassword")?.focus();
     } else if (error.requiresVerification) {
@@ -654,7 +681,7 @@ async function handleResendVerification() {
     dom.authStatus.textContent = error.message;
   } finally {
     dom.resendVerification.disabled = false;
-    dom.resendVerification.textContent = "Resend code";
+    dom.resendVerification.textContent = "Generate OTP";
   }
 }
 

@@ -17,17 +17,6 @@ const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const TOKEN_SECRET =
   String(process.env.TOKEN_SECRET || "").trim() ||
   (IS_RENDER ? crypto.randomBytes(48).toString("hex") : "northstar-demo-secret");
-const SMTP_HOST = String(process.env.SMTP_HOST || "smtp.gmail.com").trim();
-const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
-const SMTP_SECURE = String(process.env.SMTP_SECURE || "").trim()
-  ? !["false", "0", "no"].includes(String(process.env.SMTP_SECURE || "").trim().toLowerCase())
-  : SMTP_PORT === 465;
-const SMTP_USER = String(process.env.SMTP_USER || "").trim();
-const SMTP_PASS = String(process.env.SMTP_PASS || "").replace(/\s+/g, "").trim();
-const EMAIL_FROM = String(process.env.EMAIL_FROM || "").trim() || (SMTP_USER ? `Northstar Mining <${SMTP_USER}>` : "Northstar Mining");
-const SMTP_CONNECTION_TIMEOUT_MS = Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 12000);
-const SMTP_GREETING_TIMEOUT_MS = Number(process.env.SMTP_GREETING_TIMEOUT_MS || 10000);
-const SMTP_SOCKET_TIMEOUT_MS = Number(process.env.SMTP_SOCKET_TIMEOUT_MS || 18000);
 const VERIFICATION_CODE_TTL_MINUTES = clampNumber(process.env.VERIFICATION_CODE_TTL_MINUTES, 5, 60, 15);
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -339,7 +328,6 @@ const wsClients = new Set();
 let storeCache = null;
 let pgPool = null;
 let persistChain = Promise.resolve();
-let mailTransport = null;
 
 const server = http.createServer((req, res) => {
   Promise.resolve(routeRequest(req, res)).catch((error) => {
@@ -484,7 +472,7 @@ function buildInitialStore() {
         createdAt: new Date(Date.now() - 3600000).toISOString(),
       },
     ],
-    emailDeliveryLog: [],
+    verificationLog: [],
     auditLog: [
       {
         id: randomId("audit"),
@@ -548,11 +536,10 @@ async function handleApi(req, res, requestUrl) {
         mode: DATABASE_URL ? "postgres" : "file",
         durable: DATABASE_URL ? true : !IS_RENDER,
       },
-      email: {
-        mode: getEmailDeliveryMode(),
-        smtpConfigured: Boolean(SMTP_USER && SMTP_PASS),
-        senderConfigured: Boolean(SMTP_USER),
-        fromConfigured: Boolean(EMAIL_FROM),
+      verification: {
+        mode: "onscreen-code",
+        externalEmailRequired: false,
+        codeTtlMinutes: VERIFICATION_CODE_TTL_MINUTES,
       },
     });
     return;
@@ -591,7 +578,10 @@ async function handleApi(req, res, requestUrl) {
     return;
   }
 
-  if (req.method === "POST" && requestUrl.pathname === "/api/auth/resend-verification") {
+  if (
+    req.method === "POST" &&
+    (requestUrl.pathname === "/api/auth/generate-otp" || requestUrl.pathname === "/api/auth/resend-verification")
+  ) {
     await handleResendVerification(store, body, res);
     return;
   }
@@ -781,56 +771,10 @@ async function handleRegister(store, body, res) {
 
   if (existingUser) {
     if (!existingUser.emailVerified) {
-      if (!verifyPassword(password, existingUser.passwordHash)) {
-        sendJson(res, 409, {
-          error: "An account with that email is already waiting for verification. Use the Verify email tab to request a fresh code.",
-          requiresVerification: true,
-          email,
-        });
-        return;
-      }
-
-      setVerificationCode(existingUser);
-      await writeStore(store);
-
-      try {
-        const delivery = await sendVerificationEmail(existingUser);
-        recordEmailDelivery(store, {
-          context: "pending-registration",
-          status: "accepted",
-          email: existingUser.email,
-          delivery,
-        });
-        addNotification(
-          existingUser,
-          "Fresh verification code sent",
-          `We emailed a fresh ${VERIFICATION_CODE_TTL_MINUTES}-minute verification code to ${existingUser.email}.`,
-          "info"
-        );
-        await writeStore(store);
-      } catch (error) {
-        const delivery = summarizeEmailError(error);
-        recordEmailDelivery(store, {
-          context: "pending-registration",
-          status: "failed",
-          email: existingUser.email,
-          delivery,
-        });
-        await writeStore(store);
-        console.error("Verification email delivery failed during pending registration:", delivery);
-        sendJson(res, 503, {
-          error: "That account is waiting for verification, but we could not send a fresh code right now.",
-          requiresVerification: true,
-          email,
-        });
-        return;
-      }
-
-      sendJson(res, 200, {
-        success: true,
+      sendJson(res, 409, {
+        error: "An account with that email is already waiting for activation. Go to the verification tab and click Generate OTP.",
         requiresVerification: true,
         email,
-        message: "That account is already waiting for verification, so we sent a fresh code to the email address on file.",
       });
       return;
     }
@@ -865,7 +809,6 @@ async function handleRegister(store, body, res) {
     );
   }
 
-  setVerificationCode(user);
   const thread = createSupportThread(user);
   user.supportThreadId = thread.id;
   addNotification(
@@ -876,8 +819,8 @@ async function handleRegister(store, body, res) {
   );
   addNotification(
     user,
-    "Verify your email to activate access",
-    `We sent a ${VERIFICATION_CODE_TTL_MINUTES}-minute verification code to ${user.email}. Confirm it to unlock your dashboard and support tools.`,
+    "Generate your OTP to activate access",
+    `Open the verification tab and click Generate OTP. The ${VERIFICATION_CODE_TTL_MINUTES}-minute code will appear on the screen.`,
     "info"
   );
 
@@ -885,38 +828,12 @@ async function handleRegister(store, body, res) {
   store.supportThreads.push(thread);
   await writeStore(store);
 
-  try {
-    const delivery = await sendVerificationEmail(user);
-    recordEmailDelivery(store, {
-      context: "registration",
-      status: "accepted",
-      email: user.email,
-      delivery,
-    });
-    await writeStore(store);
-  } catch (error) {
-    const delivery = summarizeEmailError(error);
-    recordEmailDelivery(store, {
-      context: "registration",
-      status: "failed",
-      email: user.email,
-      delivery,
-    });
-    await writeStore(store);
-    console.error("Verification email delivery failed during registration:", delivery);
-    sendJson(res, 503, {
-      error: "Your account was created, but we could not send the verification code yet. Please try resend verification in a moment.",
-      requiresVerification: true,
-      email: user.email,
-    });
-    return;
-  }
-
   sendJson(res, 201, {
     success: true,
     requiresVerification: true,
     email: user.email,
-    message: "We sent a six-digit verification code to your email. Enter it to finish activating your account.",
+    codeTtlMinutes: VERIFICATION_CODE_TTL_MINUTES,
+    message: "Account created. Click Generate OTP on the verification screen to create your activation code.",
   });
 }
 
@@ -933,7 +850,7 @@ async function handleLogin(store, body, res) {
 
   if (!user.emailVerified) {
     sendJson(res, 403, {
-      error: "Verify your email before signing in.",
+      error: "Activate your account with the platform OTP before signing in.",
       requiresVerification: true,
       email: user.email,
     });
@@ -971,7 +888,7 @@ async function handleVerifyEmail(store, body, res) {
 
   if (user.emailVerified) {
     sendJson(res, 400, {
-      error: "That email is already verified. Please log in with your existing credentials.",
+      error: "That account is already active. Please log in with your existing credentials.",
       alreadyRegistered: true,
       email: user.email,
     });
@@ -979,18 +896,22 @@ async function handleVerifyEmail(store, body, res) {
   }
 
   if (!user.verificationCode) {
-    sendJson(res, 400, { error: "No verification is pending for that email." });
+    sendJson(res, 400, {
+      error: "No OTP has been generated yet. Click Generate OTP and enter the code shown on screen.",
+      requiresVerification: true,
+      email: user.email,
+    });
     return;
   }
 
   if (!code) {
-    sendJson(res, 400, { error: "Enter the six-digit verification code we emailed you." });
+    sendJson(res, 400, { error: "Enter the six-digit OTP shown on the verification screen." });
     return;
   }
 
   if (user.verificationCodeExpiresAt && new Date(user.verificationCodeExpiresAt).getTime() < Date.now()) {
     sendJson(res, 400, {
-      error: "That verification code has expired. Request a fresh code and try again.",
+      error: "That OTP has expired. Generate a fresh OTP and try again.",
       requiresVerification: true,
       email: user.email,
       codeExpired: true,
@@ -999,7 +920,7 @@ async function handleVerifyEmail(store, body, res) {
   }
 
   if (user.verificationCode !== code) {
-    sendJson(res, 400, { error: "The verification code is invalid." });
+    sendJson(res, 400, { error: "The OTP is invalid." });
     return;
   }
 
@@ -1007,13 +928,13 @@ async function handleVerifyEmail(store, body, res) {
   user.verificationCode = null;
   user.verificationCodeExpiresAt = null;
   user.lastLoginAt = new Date().toISOString();
-  addNotification(user, "Email verified", "Your email has been confirmed. Your dashboard, plans, and support desk are now ready to use.", "success");
+  addNotification(user, "Account activated", "Your account has been activated. Your dashboard, plans, and support desk are now ready to use.", "success");
   addNotification(user, "Account active", "Review your plans, monitor performance, and enable 2FA any time from the security panel.", "success");
   await writeStore(store);
 
   sendJson(res, 200, {
     success: true,
-    message: "Email verified successfully. Redirecting to your dashboard.",
+    message: "Account activated successfully. Redirecting to your dashboard.",
     token: issueSessionToken(user),
     user: sanitizeUser(user),
   });
@@ -1035,7 +956,7 @@ async function handleResendVerification(store, body, res) {
 
   if (user.emailVerified) {
     sendJson(res, 400, {
-      error: "That email is already verified. Please log in with your existing credentials.",
+      error: "That account is already active. Please log in with your existing credentials.",
       alreadyRegistered: true,
       email: user.email,
     });
@@ -1043,42 +964,21 @@ async function handleResendVerification(store, body, res) {
   }
 
   setVerificationCode(user);
-  await writeStore(store);
+  recordVerificationEvent(store, {
+    context: "generate-otp",
+    email: user.email,
+  });
 
-  try {
-    const delivery = await sendVerificationEmail(user);
-    recordEmailDelivery(store, {
-      context: "resend",
-      status: "accepted",
-      email: user.email,
-      delivery,
-    });
-  } catch (error) {
-    const delivery = summarizeEmailError(error);
-    recordEmailDelivery(store, {
-      context: "resend",
-      status: "failed",
-      email: user.email,
-      delivery,
-    });
-    await writeStore(store);
-    console.error("Verification email delivery failed during resend:", delivery);
-    sendJson(res, 503, {
-      error: "We could not resend the verification code right now. Please try again shortly.",
-      requiresVerification: true,
-      email: user.email,
-    });
-    return;
-  }
-
-  addNotification(user, "Verification code resent", `We emailed a fresh ${VERIFICATION_CODE_TTL_MINUTES}-minute code to ${user.email}.`, "info");
+  addNotification(user, "OTP generated", `A fresh ${VERIFICATION_CODE_TTL_MINUTES}-minute OTP is ready on the verification screen.`, "info");
   await writeStore(store);
 
   sendJson(res, 200, {
     success: true,
     requiresVerification: true,
     email: user.email,
-    message: "A fresh verification code is on the way to your inbox.",
+    verificationCode: user.verificationCode,
+    codeTtlMinutes: VERIFICATION_CODE_TTL_MINUTES,
+    message: "Your OTP is ready below. Enter it to activate your account.",
   });
 }
 
@@ -1436,7 +1336,7 @@ function buildAdminOverview(store) {
         };
       }),
     announcements: store.announcements.slice(0, 5),
-    emailDeliveryLog: (store.emailDeliveryLog || []).slice(0, 12),
+    verificationLog: (store.verificationLog || []).slice(0, 12),
     auditLog: store.auditLog.slice(0, 12),
   };
 }
@@ -1660,7 +1560,11 @@ function readStore() {
       network: item.network || "Bitcoin",
     })),
   }));
-  store.emailDeliveryLog = Array.isArray(store.emailDeliveryLog) ? store.emailDeliveryLog.slice(0, 40) : [];
+  store.verificationLog = Array.isArray(store.verificationLog)
+    ? store.verificationLog.slice(0, 40)
+    : Array.isArray(store.emailDeliveryLog)
+      ? store.emailDeliveryLog.slice(0, 40)
+      : [];
   return store;
 }
 
@@ -1920,28 +1824,25 @@ function createNotification(title, message, level) {
   };
 }
 
-function recordEmailDelivery(store, { context, status, email, delivery }) {
+function recordVerificationEvent(store, { context, email }) {
   const event = {
-    id: randomId("mail"),
+    id: randomId("verify"),
     context,
-    status,
+    status: "generated",
     email: maskEmail(email),
-    reason: delivery?.reason || null,
-    code: delivery?.code || null,
-    command: delivery?.command || null,
-    responseCode: delivery?.responseCode || null,
-    message: delivery?.message || (status === "accepted" ? "Provider accepted the message for delivery." : null),
-    messageIdPresent: Boolean(delivery?.messageId),
+    reason: "onscreen_code",
+    code: null,
+    command: null,
+    responseCode: null,
+    message: `Platform verification code generated for ${VERIFICATION_CODE_TTL_MINUTES} minutes.`,
+    messageIdPresent: false,
     createdAt: new Date().toISOString(),
   };
-  store.emailDeliveryLog = [event, ...(store.emailDeliveryLog || [])].slice(0, 40);
+  store.verificationLog = [event, ...(store.verificationLog || [])].slice(0, 40);
   store.auditLog.unshift({
     id: randomId("audit"),
-    type: "email_delivery",
-    detail:
-      status === "accepted"
-        ? `Verification email accepted for ${event.email} during ${context}.`
-        : `Verification email failed for ${event.email} during ${context}: ${event.reason || "smtp_delivery_failed"}.`,
+    type: "verification_code",
+    detail: `Platform verification code generated for ${event.email} during ${context}.`,
     createdAt: event.createdAt,
   });
   store.auditLog = store.auditLog.slice(0, 80);
@@ -1999,111 +1900,6 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
-function getEmailDeliveryMode() {
-  if (SMTP_USER && SMTP_PASS) {
-    return "smtp";
-  }
-  return IS_RENDER ? "unconfigured" : "preview";
-}
-
-function getMailTransport() {
-  if (mailTransport) {
-    return mailTransport;
-  }
-  const nodemailer = require("nodemailer");
-  mailTransport = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_SECURE,
-    connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
-    greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
-    socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-  });
-  return mailTransport;
-}
-
-async function sendPlatformEmail({ to, subject, text, html }) {
-  const mode = getEmailDeliveryMode();
-
-  if (mode === "preview") {
-    writeEmailPreview(to, subject, text);
-    return { mode };
-  }
-
-  if (mode === "unconfigured") {
-    throw new Error("Email delivery is not configured for this environment.");
-  }
-
-  const info = await getMailTransport().sendMail({
-    from: EMAIL_FROM,
-    to,
-    subject,
-    text,
-    html,
-  });
-
-  console.info("Email delivery accepted", {
-    mode,
-    to: maskEmail(to),
-    messageId: info.messageId || null,
-    accepted: Array.isArray(info.accepted) ? info.accepted.map(maskEmail) : [],
-    rejected: Array.isArray(info.rejected) ? info.rejected.map(maskEmail) : [],
-    response: info.response || null,
-  });
-
-  return { mode, messageId: info.messageId || null };
-}
-
-function buildVerificationEmail(user) {
-  const code = user.verificationCode;
-  const expiryText = `${VERIFICATION_CODE_TTL_MINUTES} minutes`;
-  const subject = `Your Northstar Mining verification code is ${code}`;
-  const text = [
-    `Welcome to Northstar Mining, ${user.fullName}.`,
-    "",
-    "Your account setup is almost complete. Please confirm this email address with the one-time verification code below.",
-    "",
-    `Verification code: ${code}`,
-    `Code expires in: ${expiryText}`,
-    "",
-    "After verification, you can sign in, review available mining plans, and use your dashboard to track account activity and support messages.",
-    "For your security, this code is only used to activate a new Northstar Mining account.",
-    "",
-    "If you did not request this account, you can safely ignore this email.",
-  ].join("\n");
-  const html = `
-    <div style="display:none;max-height:0;overflow:hidden;color:transparent;opacity:0;">
-      Use this one-time code to activate your Northstar Mining account. It expires in ${expiryText}.
-    </div>
-    <div style="margin:0;padding:34px 16px;background:#06101b;color:#e9eef7;font-family:Segoe UI,Arial,sans-serif;">
-      <div style="max-width:600px;margin:0 auto;border-radius:28px;overflow:hidden;background:#0b1626;border:1px solid rgba(116,230,245,0.18);box-shadow:0 22px 70px rgba(0,0,0,0.34);">
-        <div style="padding:28px 32px;background:linear-gradient(135deg,#102236 0%,#102f35 50%,#0b1626 100%);border-bottom:1px solid rgba(255,255,255,0.08);">
-          <p style="margin:0 0 10px;color:#7ee7f4;font-size:12px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;">Northstar Mining</p>
-          <h1 style="margin:0;color:#f6f9ff;font-size:30px;line-height:1.15;">Confirm your email address</h1>
-          <p style="margin:14px 0 0;color:#c8d4e4;font-size:15px;line-height:1.65;">Welcome, <strong style="color:#ffffff;">${escapeHtml(user.fullName)}</strong>. Your account setup is almost complete.</p>
-        </div>
-        <div style="padding:30px 32px 32px;">
-          <p style="margin:0 0 22px;color:#c8d4e4;font-size:16px;line-height:1.7;">Enter the secure one-time code below on the Northstar Mining verification screen to activate your dashboard access.</p>
-          <div style="margin:0 0 24px;padding:22px 18px;border-radius:22px;background:linear-gradient(135deg,rgba(116,230,245,0.14),rgba(123,238,192,0.10));border:1px solid rgba(116,230,245,0.34);text-align:center;">
-            <div style="margin-bottom:12px;color:#8ceaf7;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;">Verification code</div>
-            <div style="color:#ffffff;font-size:38px;font-weight:800;letter-spacing:0.24em;line-height:1;">${escapeHtml(code)}</div>
-          </div>
-          <div style="margin:0 0 22px;padding:16px 18px;border-radius:18px;background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.08);">
-            <p style="margin:0;color:#d8e2ef;font-size:14px;line-height:1.7;"><strong style="color:#ffffff;">Security note:</strong> This code expires in ${expiryText} and is only used to verify a new Northstar Mining account.</p>
-          </div>
-          <p style="margin:0 0 18px;color:#c8d4e4;font-size:15px;line-height:1.75;">After verification, you can sign in, review available mining plans, and use your dashboard to track account activity and support messages.</p>
-          <p style="margin:0;color:#8092aa;font-size:13px;line-height:1.65;">If you did not request this account, no action is needed. You can safely ignore this email.</p>
-        </div>
-      </div>
-    </div>
-  `;
-  return { subject, text, html };
-}
-
 function maskEmail(email) {
   const [name, domain] = String(email || "").split("@");
   if (!name || !domain) {
@@ -2111,54 +1907,6 @@ function maskEmail(email) {
   }
   const visible = name.slice(0, 2);
   return `${visible}${"*".repeat(Math.max(2, name.length - 2))}@${domain}`;
-}
-
-function summarizeEmailError(error) {
-  const code = String(error?.code || "");
-  const command = String(error?.command || "");
-  const responseCode = error?.responseCode || null;
-  const message = sanitizeEmailErrorMessage(error?.message || "Email delivery failed.");
-  let reason = "smtp_delivery_failed";
-
-  if (code === "EAUTH" || responseCode === 535 || /invalid login|username and password|authentication/i.test(message)) {
-    reason = "smtp_auth_failed";
-  } else if (code === "ETIMEDOUT" || /timeout|timed out/i.test(message)) {
-    reason = "smtp_timeout";
-  } else if (/tls|certificate|ssl/i.test(message)) {
-    reason = "smtp_tls_failed";
-  } else if (/recipient|mailbox|address/i.test(message)) {
-    reason = "recipient_rejected";
-  }
-
-  return {
-    reason,
-    code: code || null,
-    command: command || null,
-    responseCode,
-    message,
-  };
-}
-
-function sanitizeEmailErrorMessage(message) {
-  let safeMessage = String(message || "");
-  if (SMTP_PASS) {
-    safeMessage = safeMessage.replaceAll(SMTP_PASS, "[redacted]");
-  }
-  if (SMTP_USER) {
-    safeMessage = safeMessage.replaceAll(SMTP_USER, "[sender]");
-  }
-  safeMessage = safeMessage.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, (match) => maskEmail(match));
-  return safeMessage.slice(0, 320);
-}
-
-async function sendVerificationEmail(user) {
-  const { subject, text, html } = buildVerificationEmail(user);
-  return sendPlatformEmail({
-    to: user.email,
-    subject,
-    text,
-    html,
-  });
 }
 
 function hashPassword(password) {

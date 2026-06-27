@@ -306,7 +306,7 @@
         <div class="auth-tabs">
           <button class="tab-button active" data-auth-tab="register" type="button">Register</button>
           <button class="tab-button" data-auth-tab="login" type="button">Login</button>
-          <button class="tab-button" data-auth-tab="verify" type="button">Verify email</button>
+          <button class="tab-button" data-auth-tab="verify" type="button">Activate account</button>
         </div>
         <form class="auth-form" id="registerForm">
           <label>Full name <input name="fullName" autocomplete="name" required /></label>
@@ -357,13 +357,18 @@
         </form>
         <form class="auth-form hidden" id="verifyForm">
           <label>Email <input id="verifyEmail" name="email" type="email" autocomplete="email" required /></label>
-          <label>Verification code <input id="verifyCode" name="code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" required /></label>
+          <div class="verification-code-card hidden" id="verificationCodeNotice" aria-live="polite">
+            <span>Your activation OTP</span>
+            <strong id="verificationCodeValue">------</strong>
+            <small>Enter this OTP below to activate your account. It refreshes when you generate a new OTP.</small>
+          </div>
+          <label>Activation OTP <input id="verifyCode" name="code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" required /></label>
           <div class="auth-action-row">
-            <button class="primary-button wide" type="submit">Verify email</button>
-            <button class="ghost-button wide" id="resendVerification" type="button">Resend code</button>
+            <button class="primary-button wide" type="submit">Activate account</button>
+            <button class="ghost-button wide" id="resendVerification" type="button">Generate OTP</button>
           </div>
         </form>
-        <p class="auth-status" id="authStatus">New accounts now require email verification before first sign-in, so only the inbox owner can activate access.</p>
+        <p class="auth-status" id="authStatus">New accounts require a platform-generated OTP before first sign-in. Already registered emails are directed back to login.</p>
       </div>
     </div>
 

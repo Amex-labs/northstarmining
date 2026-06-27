@@ -31,7 +31,7 @@ const adminDom = {
   broadcastForm: document.querySelector("#broadcastForm"),
   broadcastStatus: document.querySelector("#broadcastStatus"),
   auditLog: document.querySelector("#auditLog"),
-  emailDeliveryLog: document.querySelector("#emailDeliveryLog"),
+  verificationLog: document.querySelector("#verificationLog"),
 };
 
 startAdmin();
@@ -106,7 +106,7 @@ async function refreshAdmin() {
 }
 
 function renderAdmin() {
-  const { metrics, users, threads, auditLog, pendingWithdrawals, emailDeliveryLog } = adminState.overview;
+  const { metrics, users, threads, auditLog, pendingWithdrawals, verificationLog } = adminState.overview;
   const escape = Northstar.escapeHtml;
 
   adminDom.adminIdentity.textContent = "Northstar Operations";
@@ -180,20 +180,20 @@ function renderAdmin() {
     )
     .join("");
 
-  adminDom.emailDeliveryLog.innerHTML = emailDeliveryLog?.length
-    ? emailDeliveryLog
+  adminDom.verificationLog.innerHTML = verificationLog?.length
+    ? verificationLog
         .map(
           (item) => `
             <article>
-              <strong>${item.status === "accepted" ? "Accepted by SMTP" : "Delivery failed"}</strong>
+              <strong>${item.status === "generated" ? "Code generated" : "Verification event"}</strong>
               <p>${escape(item.context)} • ${escape(item.email)}</p>
-              <p>${escape(item.reason || item.message || "Provider accepted the message for delivery.")}</p>
+              <p>${escape(item.message || "A platform verification code was generated for this account.")}</p>
               <small>${Northstar.formatDate(item.createdAt)}</small>
             </article>
           `
         )
         .join("")
-    : "<p class='support-system'>No verification email attempts have been recorded yet.</p>";
+    : "<p class='support-system'>No verification code activity has been recorded yet.</p>";
 
   if (!adminState.selectedThreadId && threads[0]) {
     adminState.selectedThreadId = threads[0].id;

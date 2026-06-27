@@ -201,7 +201,7 @@ function renderDashboard() {
     .join("");
 
   dashboardDom.securityState.innerHTML = `
-    <p>Email verified: <strong>${user.emailVerified ? "Yes" : "No"}</strong></p>
+    <p>Account active: <strong>${user.emailVerified ? "Yes" : "No"}</strong></p>
     <p>Authenticator enabled: <strong>${user.twoFactorEnabled ? "Yes" : "No"}</strong></p>
   `;
 
